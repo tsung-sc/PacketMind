@@ -1,0 +1,80 @@
+{
+  "proxy": {
+    "listener": {
+      "http_enabled": true,
+      "port": 8012,
+      "https_enabled": true,
+      "mitm_enabled": true,
+      "socks5_enabled": true,
+      "auto_start_on_boot": false
+    },
+    "recording": {
+      "enabled": true,
+      "max_capture_body_size_mb": 5
+    },
+    "ssl_proxying": {
+      "enabled": true,
+      "include_hosts": [],
+      "exclude_hosts": []
+    },
+    "access_control": {
+      "enabled": false,
+      "allowed_clients": []
+    },
+    "external_proxy": {
+      "enabled": true,
+      "scheme": "socks5",
+      "host": "127.0.0.1",
+      "port": 7890,
+      "username": "",
+      "bypass_hosts": []
+    },
+    "throttling": {
+      "enabled": false,
+      "latency_ms": 0,
+      "downstream_kbps": 0,
+      "upstream_kbps": 0
+    },
+    "breakpoints": {
+      "enabled": false,
+      "request_matchers": [],
+      "response_matchers": []
+    },
+    "reverse_proxy": {
+      "enabled": false,
+      "rules": []
+    },
+    "port_forwarding": {
+      "enabled": false,
+      "rules": []
+    },
+    "web_interface": {
+      "enabled": false,
+      "port": 8889
+    }
+  },
+  "tools": {
+    "no_caching": false,
+    "block_cookies": false,
+    "map_remote_enabled": false,
+    "map_local_enabled": false,
+    "rewrite_enabled": false,
+    "block_list_enabled": false,
+    "dns_spoofing": false,
+    "mirror_enabled": false,
+    "auto_save_enabled": false,
+    "client_process": false
+  },
+  "window": {
+    "structure_view": true,
+    "use_dark_theme": false
+  },
+  "cert": {
+    "ca_cert": "./data/certs/ca.crt",
+    "ca_key": "./data/certs/ca.key",
+    "organization": "PacketMind"
+  },
+  "mcp": {
+    "servers": null
+  }
+}

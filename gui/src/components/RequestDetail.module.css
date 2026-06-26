@@ -1,0 +1,168 @@
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.meta {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.method {
+  font-weight: 600;
+  color: #1890ff;
+  font-size: 13px;
+}
+
+.url {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+  font-size: 12px;
+  color: #333;
+  min-width: 100px;
+}
+
+.status {
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.statusOk {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.statusWarn {
+  background: #fffbe6;
+  color: #faad14;
+}
+
+.statusError {
+  background: #fff2f0;
+  color: #ff4d4f;
+}
+
+.duration {
+  color: #999;
+  font-size: 12px;
+}
+
+.actions {
+  margin-left: auto;
+}
+
+.tabs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tabs .ant-tabs-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.tabs .ant-tabs-tabpane {
+  height: 100%;
+}
+
+.tabContent {
+  padding: 12px 16px;
+  overflow: auto;
+  height: 100%;
+}
+
+.loading, .empty, .error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  min-height: 200px;
+}
+
+.jsonView {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  overflow: auto;
+  font-size: 12px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+}
+
+.headersSection {
+  margin-bottom: 16px;
+}
+
+.headersSection h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.headersTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.headersTable th,
+.headersTable td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.headersTable th {
+  background: #fafafa;
+  font-weight: 500;
+}
+
+.headerRow:hover {
+  background: #fafafa;
+}
+
+.headerName {
+  width: 180px;
+  font-weight: 500;
+  color: #333;
+  font-family: monospace;
+}
+
+.headerValue {
+  font-family: monospace;
+  word-break: break-all;
+  max-width: 300px;
+}
+
+.headerAction {
+  width: 60px;
+  text-align: center;
+}
+
+.headerAction a {
+  font-size: 12px;
+}
+
+.hint {
+  padding: 8px 16px;
+  background: #f0f5ff;
+  border-top: 1px solid #d6e4ff;
+  font-size: 12px;
+  color: #1d39c4;
+}

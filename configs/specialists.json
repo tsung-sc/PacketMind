@@ -1,0 +1,89 @@
+{
+  "specialists": [
+    {
+      "name": "header",
+      "description": "Specialist for analyzing HTTP headers, cookies, and response header tracing",
+      "instructions": "Focus on analyzing request/response headers, cookies, Set-Cookie headers, and tracing header values across requests.",
+      "tool_whitelist": ["get_request", "search_requests_by_header", "search_all_fields", "find_prior_response_sources", "find_later_request_usages", "trace_value_flow", "analyze_encoding", "diff_requests", "bash"]
+    },
+    {
+      "name": "body",
+      "description": "Specialist for analyzing request/response bodies and content",
+      "instructions": "Focus on analyzing request bodies, response bodies, JSON/XML payloads, and tracing values in body content.",
+      "tool_whitelist": ["get_request", "search_requests_by_body", "search_requests_by_response", "search_all_fields", "find_prior_response_sources", "find_later_request_usages", "trace_value_flow", "analyze_encoding", "diff_requests", "bash"]
+    },
+    {
+      "name": "security",
+      "description": "Security-focused specialist for authentication, tokens, and suspicious patterns",
+      "instructions": "Focus on security-related analysis: authentication tokens, authorization headers, session cookies, and suspicious patterns.",
+      "tool_whitelist": null
+    },
+    {
+      "name": "general",
+      "description": "General-purpose specialist for broad analysis and triage",
+      "instructions": "Perform general analysis when the query doesn't fit other specialists. Can use all available tools.",
+      "tool_whitelist": null
+    }
+  ],
+  "routing_rules": [
+    {
+      "keywords": ["header", "cookie", "set-cookie", "authorization", "auth", "token"],
+      "target_field_keywords": ["header", "cookie", "authorization", "token", "x-", "cache", "content-type"],
+      "target_location_keywords": ["header", "cookie"],
+      "specialist_name": "header",
+      "priority": 100,
+      "reason": "Query or target relates to HTTP headers"
+    },
+    {
+      "keywords": ["body", "payload", "json", "xml", "request body", "response body", "content"],
+      "target_field_keywords": ["body", "payload", "data", "json", "xml"],
+      "target_location_keywords": ["body", "json_body", "form_body", "query"],
+      "specialist_name": "body",
+      "priority": 90,
+      "reason": "Query or target relates to request/response body"
+    },
+    {
+      "keywords": ["security", "auth", "authenticate", "authorize", "suspicious", "attack", "vulnerability", "xss", "sql", "injection"],
+      "target_field_keywords": ["authorization", "token", "api_key", "secret", "password", "credential"],
+      "specialist_name": "security",
+      "priority": 80,
+      "reason": "Query or target relates to security analysis"
+    },
+    {
+      "keywords": [],
+      "specialist_name": "general",
+      "priority": 0,
+      "reason": "Default fallback to general specialist"
+    }
+  ],
+  "handoff_rules": [
+    {
+      "source_specialist": "header",
+      "target_specialist": "security",
+      "trigger_keywords": ["security", "vulnerability", "attack", "xss", "sql injection", "suspicious"],
+      "reason": "Header analysis may reveal security concerns requiring security specialist",
+      "priority": 100
+    },
+    {
+      "source_specialist": "body",
+      "target_specialist": "security",
+      "trigger_keywords": ["security", "vulnerability", "attack", "injection", "malicious", "credential"],
+      "reason": "Body analysis may reveal security concerns requiring security specialist",
+      "priority": 100
+    },
+    {
+      "source_specialist": "security",
+      "target_specialist": "body",
+      "trigger_keywords": ["payload", "request body", "response body", "json", "xml content"],
+      "reason": "Security analysis may require deep body inspection",
+      "priority": 90
+    },
+    {
+      "source_specialist": "security",
+      "target_specialist": "header",
+      "trigger_keywords": ["cookie", "set-cookie", "authorization", "header tracing"],
+      "reason": "Security analysis may require header tracing expertise",
+      "priority": 90
+    }
+  ]
+}

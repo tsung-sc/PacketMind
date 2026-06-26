@@ -1,0 +1,17 @@
+Analysis target: {{.Query}}
+
+No target request is set. First triage the question type, then choose the right strategy:
+
+1) Captured-traffic question (about requests/responses/tokens/headers/flows in this session)
+   - Use traffic tools to locate relevant requests in the current session{{if .SessionID}} (session_id: {{.SessionID}}){{end}}.
+   - Start from user-provided clues (host/path/keyword), then fetch concrete request details and continue tracing as needed.
+
+2) General knowledge question (does not require captured traffic or live local state)
+   - Answer directly without tool calls.
+
+3) Local-machine / workspace / runtime / file / installed-tools / version / current-environment question
+   - Do NOT search captured traffic.
+   - Use bash when live verification is needed and available.
+   - If approval is denied or command execution fails, clearly explain that local state could not be verified.
+
+Call tools only when they are necessary for the question type. Do NOT call get_request with guessed or fabricated request IDs — only use IDs obtained from search tool results or explicitly provided in this prompt.

@@ -1,0 +1,27 @@
+{
+  "name": "packetmind-gui",
+  "version": "1.0.13",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ant-design/icons-vue": "^7.0.1",
+    "ant-design-vue": "^4.2.6",
+    "axios": "^1.6.0",
+    "dayjs": "^1.11.10",
+    "markdown-it": "^14.1.1",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.30"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "playwright": "^1.58.2",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8",
+    "vue-tsc": "^3.2.5"
+  }
+}

@@ -1,0 +1,70 @@
+.layout {
+  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  background: #001529;
+  height: 48px;
+  line-height: 48px;
+}
+
+.logo {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.headerRight .ant-badge {
+  color: #fff;
+}
+
+.mainContent {
+  display: flex;
+  flex-direction: column;
+  background: #f0f2f5;
+  height: calc(100vh - 48px);
+  overflow: hidden;
+}
+
+.contentLayout {
+  flex: 1;
+  background: #f0f2f5;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.sider {
+  background: #fff;
+  border-right: 1px solid #e8e8e8;
+  overflow: hidden;
+}
+
+.sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.detailContent {
+  background: #fff;
+  margin: 12px;
+  border-radius: 4px;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+}

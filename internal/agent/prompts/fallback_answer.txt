@@ -1,0 +1,17 @@
+## Conclusion
+The Agent stopped early during automatic exploration. The current conclusion is conservative.
+
+## Parameter source / propagation chain
+Requires manual confirmation with the matched related requests. Auto-exploration stop reason: {{.Reason}}.
+
+## Key evidence
+{{.Evidence}}
+
+## Uncertainties
+- Automatic exploration ended under constraints; complete evidence chain not yet formed
+- Upstream/downstream requests and key field changes still need verification
+
+## Suggestions for further verification
+- Prioritize reviewing these request_ids: {{.RelatedRequests}}
+- Cross-validate key Header, request body, and response body match results
+- If necessary, provide additional search clues or narrow the question scope

@@ -1,0 +1,21 @@
+gui/node_modules/
+gui/dist/
+bin/
+docs/
+data/
+
+# Local IDE / agent artifacts
+.idea/
+.omo/
+.playwright-mcp/
+
+# Local runtime secrets
+configs/models.json
+
+# Local debug captures / screenshots
+agent-*.yml
+modal-*.yml
+modal-screenshot.png
+model-config-channel-crud.png
+packetmind-*.png
+nul
