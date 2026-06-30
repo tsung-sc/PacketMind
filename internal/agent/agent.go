@@ -176,7 +176,7 @@ func (a *Agent) Analyze(ctx context.Context, req *AgentRequest, onEvent AgentEve
 		err           error
 	)
 
-	runner := a.tryNewRunner(req.Model, sessionID)
+	runner := a.tryNewRunner(req.Model, sessionID, req.InterventionProvider)
 	if runner == nil {
 		return nil, fmt.Errorf("failed to create runtime runner")
 	}
@@ -218,7 +218,7 @@ func (a *Agent) Analyze(ctx context.Context, req *AgentRequest, onEvent AgentEve
 	return result, nil
 }
 
-func (a *Agent) tryNewRunner(modelID, sessionID string) *agentruntime.Runner {
+func (a *Agent) tryNewRunner(modelID, sessionID string, intervention agentruntime.InterventionFunc) *agentruntime.Runner {
 	if a == nil || a.llm == nil || a.mcpMgr == nil {
 		return nil
 	}
@@ -228,6 +228,7 @@ func (a *Agent) tryNewRunner(modelID, sessionID string) *agentruntime.Runner {
 		agentruntime.WithModel(modelID),
 		agentruntime.WithSessionID(sessionID),
 		agentruntime.WithExecuteTool(a.mcpMgr.SafeExecute),
+		agentruntime.WithIntervention(intervention),
 	)
 }
 

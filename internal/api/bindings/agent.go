@@ -12,15 +12,23 @@ import (
 
 	"github.com/packetmind/packetmind/internal/agent"
 	"github.com/packetmind/packetmind/internal/agent/llmcore"
+	agentruntime "github.com/packetmind/packetmind/internal/agent/runtime"
 	"github.com/packetmind/packetmind/internal/appctx"
 	"github.com/packetmind/packetmind/internal/config"
 	"github.com/packetmind/packetmind/internal/storage"
 )
 
 // analysisContext tracks an in-flight analysis with its session association.
+type analysisIntervention struct {
+	ID      string
+	Content string
+}
+
 type analysisContext struct {
 	cancel    context.CancelFunc
 	sessionID string
+	mu        sync.Mutex
+	steers    []analysisIntervention
 }
 
 // AgentAPI 提供 AI 分析相关的前端绑定。
@@ -35,6 +43,14 @@ type AnalyzeRequest struct {
 	SessionID string `json:"session_id"`
 	Query     string `json:"query"`
 	ModelID   string `json:"model_id"`
+}
+
+type InterventionRequest struct {
+	AnalysisID string `json:"analysis_id"`
+	SessionID  string `json:"session_id"`
+	MessageID  string `json:"message_id"`
+	Message    string `json:"message"`
+	Mode       string `json:"mode"`
 }
 
 // AnalyzeResponse AI 分析响应。
@@ -105,6 +121,9 @@ func (a *AgentAPI) runAgentAnalysis(analysisID string, req *AnalyzeRequest, mode
 		SessionID: sessionID,
 		Query:     strings.TrimSpace(req.Query),
 		Model:     modelID,
+		InterventionProvider: func() []agentruntime.Intervention {
+			return a.takeSteers(analysisID)
+		},
 	}
 
 	a.persistUserMessage(sessionID, agentReq.Query)
@@ -218,6 +237,54 @@ func (a *AgentAPI) ClearSessionMemory(sessionID string) SessionResponse {
 }
 
 // CancelAnalysis 取消分析。
+func (a *AgentAPI) SendIntervention(req InterventionRequest) SessionResponse {
+	analysisID := strings.TrimSpace(req.AnalysisID)
+	message := strings.TrimSpace(req.Message)
+	mode := strings.ToLower(strings.TrimSpace(req.Mode))
+	if mode == "" {
+		mode = "steer"
+	}
+	if analysisID == "" || message == "" {
+		return SessionResponse{Code: 40002, Message: "analysis_id and message are required"}
+	}
+	if mode == "abort" {
+		return a.CancelAnalysis(analysisID)
+	}
+	if mode != "steer" && mode != "queue" {
+		return SessionResponse{Code: 40002, Message: "mode must be steer, queue, or abort"}
+	}
+	if mode == "queue" {
+		return SessionResponse{Code: 40901, Message: "queue mode is handled by the frontend queue"}
+	}
+
+	a.activeCtxsMu.RLock()
+	ac, exists := a.activeCtxs[analysisID]
+	a.activeCtxsMu.RUnlock()
+	if !exists {
+		return SessionResponse{Code: 40001, Message: "Analysis not found or already completed"}
+	}
+	messageID := strings.TrimSpace(req.MessageID)
+	if messageID == "" {
+		messageID = "steer_" + uuid.New().String()
+	}
+	ac.mu.Lock()
+	ac.steers = append(ac.steers, analysisIntervention{ID: messageID, Content: message})
+	ac.mu.Unlock()
+	if appctx.Ctx != nil {
+		runtime.EventsEmit(appctx.Ctx, "agent:analysis", map[string]interface{}{
+			"analysis_id": analysisID,
+			"session_id":  ac.sessionID,
+			"agent_event": map[string]interface{}{
+				"type":       "thought",
+				"content":    "User steering received. I will apply it at the next safe step.",
+				"created_at": time.Now(),
+			},
+		})
+	}
+	return SessionResponse{Code: 0, Message: "Steering instruction queued for next step"}
+}
+
+// CancelAnalysis 取消分析。
 func (a *AgentAPI) CancelAnalysis(analysisID string) SessionResponse {
 	a.activeCtxsMu.Lock()
 	ac, exists := a.activeCtxs[analysisID]
@@ -323,6 +390,7 @@ func (a *AgentAPI) emitAgentEvent(analysisID, sessionID string, event agent.Agen
 		"type":            event.Type,
 		"content":         event.Content,
 		"tool_name":       event.ToolName,
+		"tool_call_id":    event.ToolCallID,
 		"arguments":       event.Arguments,
 		"result":          event.Result,
 		"request_ids":     event.RequestIDs,
@@ -335,6 +403,7 @@ func (a *AgentAPI) emitAgentEvent(analysisID, sessionID string, event agent.Agen
 		"error_recovered": event.ErrorRecovered,
 		"retry_attempt":   event.RetryAttempt,
 		"retry_max":       event.RetryMax,
+		"intervention_id": event.InterventionID,
 	}
 
 	runtime.EventsEmit(appctx.Ctx, "agent:analysis", map[string]interface{}{
@@ -461,11 +530,28 @@ func (a *AgentAPI) registerContext(analysisID string, cancel context.CancelFunc,
 	a.activeCtxsMu.Unlock()
 }
 
+func (a *AgentAPI) takeSteers(analysisID string) []agentruntime.Intervention {
+	a.activeCtxsMu.RLock()
+	ac := a.activeCtxs[analysisID]
+	a.activeCtxsMu.RUnlock()
+	if ac == nil {
+		return nil
+	}
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+	if len(ac.steers) == 0 {
+		return nil
+	}
+	items := make([]agentruntime.Intervention, 0, len(ac.steers))
+	for _, steer := range ac.steers {
+		items = append(items, agentruntime.Intervention{ID: steer.ID, Content: steer.Content})
+	}
+	ac.steers = nil
+	return items
+}
+
 func (a *AgentAPI) unregisterContext(analysisID string) {
 	a.activeCtxsMu.Lock()
 	delete(a.activeCtxs, analysisID)
 	a.activeCtxsMu.Unlock()
 }
-
-
-

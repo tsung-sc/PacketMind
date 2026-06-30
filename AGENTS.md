@@ -428,7 +428,12 @@ AI Agent 分析通过 WebSocket 逐步广播 `agent_event` / `agent_result`，�
 - `internal/storage/helpers.go` 的 `cloneRequest()` 必须深拷贝 TLS 相关切片字段（包括 `TLSServerCertificates` / `TLSServerExtensions` 及证书内嵌切片字段），避免返回值与 memdb row 共享底层切片造成别名写穿
 - Session 与 Request 分别落在独立 memdb table；runtime `Session` 仅承载 session 元数据，`GetSession()` / `ListSessions()` 应保持 metadata-only 返回；派生的 `requests/host_groups` 统一收敛到 `SessionView`（`GetSessionView()` / `ListSessionViews()`）与导入导出 envelope，在需要聚合视图时按 request table 动态派生；新增 storage 读路径不要再把派生字段塞回 `Session` / `sessionRecord`，也不要恢复 `collectRequestCandidates` 一类仅吞错误的薄 wrapper
 - `ImportAll()` 在导入 payload 未提供 `ActiveSession` 且各 session 也未标记 `IsActive` 时，必须回退选择最新 session 作为 active，保持与 `CreateSession()` / `DeleteSession()` 一致的“非空存储最多且至少一个 active session”语义
-- Agent 内置快速分析工具已扩展为 `analyze_encoding` / `diff_requests` / `search_all_fields` / `batch_execute`：分别位于 `internal/agent/tools_encoding.go`、`internal/agent/tools_diff.go`、`internal/agent/tools_search.go`、`internal/agent/tools_batch.go`；新增同类能力时应优先沿用“独立工具文件 + tools.go schema + agent.go executeTool 分发 + allToolNames 注册”的统一接入模式
+- Agent 内置工具现分为两类：基础分析工具（`get_request` / `search_*` / `find_prior_response_sources` / `find_later_request_usages` / `trace_value_flow` / `analyze_encoding` / `diff_requests` / `search_all_fields` / `batch_execute` / `bash`）与认知探索工具（`summarize_session` / `classify_requests` / `trace_flow_sequence` / `test_hypothesis`）
+- 认知探索工具位于 `internal/agent/tools/builtin/summarize.go`、`classify.go`、`flow.go`、`hypothesis.go` + `hypothesis_parser.go`；新增同类能力时应优先沿用“独立工具文件 + catalog.go schema + exports.go 导出 + mcp/builtin.go 注册”的统一接入模式
+- `summarize_session` 遍历 `store.ListRequests()` 按 host 聚合，生成 status/content-type 分布、关键端点、auth/signed 检测与 critical_observations；输出控制在 ~3000 字符
+- `classify_requests` 使用轻量启发式（path/header/content-type/status/body 关键词）将请求分类为 auth_entry、token_issuance、signed_request 等 10 类，并生成 auto_focus_suggestion 引导下一步
+- `trace_flow_sequence` 按时序扫描请求，检测 cookie_flow（Set-Cookie → Cookie）、token_flow（response token → Bearer）、value_reuse、redirect_chain，并输出 gaps_and_anomalies
+- `test_hypothesis` 内置轻量表达式解析器（`hypothesis_parser.go`），支持 EXTRACT(body|header|query|response_body|response_header|cookie, path)、CONCAT、CONCAT_WITH、LOWER/UPPER、MD5/SHA1/SHA256、HMAC_SHA256、BASE64、URLENCODE、字面量；逐请求计算并与 actual 值比对，返回 match rate 与 alternative_hypotheses
 - `analyze_encoding` 应优先输出结构化编码链与分层预览（包含最终类型与错误摘要）；`search_all_fields` 结果应保持 `found_results` / `count` / `error_summary` 结构；`batch_execute` 应默认并发聚合子调用结果且不改变既有单工具实现
 - AI 模块已引入 `internal/agent/prompt.go` 的 `SystemPromptBuilder` 用于组合系统提示词；`Analyze()` 路径应优先通过 builder 叠加基础角色与动态上下文，不要重新引入 specialist/orchestrator prompt 分支
 - `internal/api/bindings/agent.go` 的 Wails agent 分析入口当前应直接调用单一 `Agent.Analyze()` 运行时；绑定层只负责把完成后的 `user`/`assistant` 往返持久化到 storage `chat_message`，不要恢复内存会话复用逻辑
@@ -807,3 +812,10 @@ docs/                  # 文档
 > 文档注记: 2026-05-26 - 已完成 Phase 2+3+4 工具提取：新增 `internal/agent/tools/` 与 `internal/agent/tools/builtin/`，将 schema/catalog、参数解析、schema 校验、executor、模糊匹配与全部 builtin tools 从父包提取出去；`Agent` 现持有 `executor *tools.Executor` 与显式注入的 `store *storage.Storage`，bindings/tests 通过 `SetStore(...)` 完成装配，旧 `agent_dispatch.go`/`tools*.go`/`sandbox.go` 等文件已删除，仅保留 `tool_registry_compat.go` 作为测试兼容层。
 >
 > 文档注记: 2026-05-26 - 已修正 request-targeted analysis 的最小后续问题：当 `Analyze()` 仅收到 `RequestID` 而未提供 `SessionID` 时，现先按 request ID 直接读取目标请求并回填其 session；`loadChatHistoryMessages()` 也已改为只向模型提供最近 12 条 storage-backed chat messages，避免历史上下文无界增长。
+>
+> 文档注记: 2026-06-29 - 已实现 Agent 认知工具套件（`summarize_session` / `classify_requests` / `trace_flow_sequence` / `test_hypothesis`），分别位于 `internal/agent/tools/builtin/summarize.go`、`classify.go`、`flow.go`、`hypothesis.go` + `hypothesis_parser.go`；同步更新 `catalog.go` schema、`exports.go` 导出、`mcp/builtin.go` MCP 注册与 `agent_role.txt` 六阶段分析工作流。
+
+---
+
+**最后更新**: 2026-06-29
+**维护者**: PacketMind Team

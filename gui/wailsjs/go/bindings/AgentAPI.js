@@ -29,3 +29,7 @@ export function ListModels() {
 export function ListProviders() {
   return window['go']['bindings']['AgentAPI']['ListProviders']();
 }
+
+export function SendIntervention(arg1) {
+  return window['go']['bindings']['AgentAPI']['SendIntervention'](arg1);
+}

@@ -21,6 +21,10 @@ const (
 	ToolDiffRequests             = "diff_requests"
 	ToolBatchExecute             = "batch_execute"
 	ToolBash                     = "bash"
+	ToolSummarizeSession         = "summarize_session"
+	ToolClassifyRequests         = "classify_requests"
+	ToolTraceFlowSequence        = "trace_flow_sequence"
+	ToolTestHypothesis           = "test_hypothesis"
 )
 
 const toolJSONSchemaExtraKey = "json_schema"
@@ -139,6 +143,42 @@ func BuiltInSchemas() []*llmtypes.ToolDefinition {
 				"timeout": map[string]any{"type": "integer", "description": "Timeout in seconds (1-300, default 60)", "minimum": 1, "maximum": 300},
 			},
 			"required": []string{"command"},
+		}),
+		NewFunctionTool(ToolSummarizeSession, "Get a high-level overview of a capture session. Returns host breakdowns, request counts, status distributions, content-type distributions, auth detection, and a timeline overview. Use this as the FIRST step in any analysis.", map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"session_id": map[string]any{"type": "string", "description": "Optional session ID"},
+			},
+			"required": []string{},
+		}),
+		NewFunctionTool(ToolClassifyRequests, "Automatically classify requests in a session by their likely role: auth_entry, token_issuance, signed_request, data_query, auth_request, config_fetch, static_resource, redirect, error, other. Returns a categorized list with key findings.", map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"session_id": map[string]any{"type": "string", "description": "Optional session ID filter"},
+				"host":       map[string]any{"type": "string", "description": "Optional host filter"},
+				"limit":      map[string]any{"type": "integer", "description": "Max results per category (1-50, default 10)", "minimum": 1, "maximum": 50},
+			},
+			"required": []string{},
+		}),
+		NewFunctionTool(ToolTraceFlowSequence, "List requests in chronological order and detect field flow relationships — cookie set/use, token issuance/consumption, redirect chains, value reuse. Annotates flow edges showing how data moves through the session.", map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"session_id":   map[string]any{"type": "string", "description": "Optional session ID filter"},
+				"host":         map[string]any{"type": "string", "description": "Optional host filter"},
+				"focus_fields": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Optional field names to track"},
+				"max_requests": map[string]any{"type": "integer", "description": "Max requests (10-100, default 50)", "minimum": 10, "maximum": 100},
+			},
+			"required": []string{},
+		}),
+		NewFunctionTool(ToolTestHypothesis, "Test a hypothesis about how a field value is generated. Given request IDs and a hypothesis composed of operations (field extraction, concatenation, hash, HMAC, base64, etc.), this tool tests against actual values and returns match rate.", map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"request_ids":     map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Request IDs to test (minimum 3)"},
+				"target_field":    map[string]any{"type": "string", "description": "Field to verify, e.g. 'sign', 'Authorization', 'token'"},
+				"target_location": map[string]any{"type": "string", "description": "'body', 'header', 'query', 'response_body', 'response_header', 'cookie'"},
+				"hypothesis":      map[string]any{"type": "string", "description": "Structured generation rule. E.g. 'MD5(CONCAT(timestamp, body_raw))', 'HMAC_SHA256(CONCAT(method,path,timestamp), secret=EXTRACT(response_body,$.data.secret))'"},
+			},
+			"required": []string{"request_ids", "target_field", "target_location", "hypothesis"},
 		}),
 	}
 }

@@ -8,10 +8,11 @@ import (
 )
 
 type AgentRequest struct {
-	RequestID string `json:"request_id"`
-	SessionID string `json:"session_id,omitempty"`
-	Query     string `json:"query"`
-	Model     string `json:"model"`
+	RequestID            string                             `json:"request_id"`
+	SessionID            string                             `json:"session_id,omitempty"`
+	Query                string                             `json:"query"`
+	Model                string                             `json:"model"`
+	InterventionProvider func() []agentruntime.Intervention `json:"-"`
 }
 
 type AgentTraceStep struct {

@@ -15,3 +15,5 @@ export function GetSessionContext(arg1:string):Promise<bindings.SessionContextSt
 export function ListModels():Promise<bindings.SessionResponse>;
 
 export function ListProviders():Promise<bindings.SessionResponse>;
+
+export function SendIntervention(arg1:bindings.InterventionRequest):Promise<bindings.SessionResponse>;

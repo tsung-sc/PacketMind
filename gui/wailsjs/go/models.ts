@@ -94,6 +94,26 @@ export namespace bindings {
 	        this.id = source["id"];
 	    }
 	}
+	export class InterventionRequest {
+	    analysis_id: string;
+	    session_id: string;
+	    message_id: string;
+	    message: string;
+	    mode: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new InterventionRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.analysis_id = source["analysis_id"];
+	        this.session_id = source["session_id"];
+	        this.message_id = source["message_id"];
+	        this.message = source["message"];
+	        this.mode = source["mode"];
+	    }
+	}
 	export class ReplayRequestOptions {
 	    headers: Record<string, Array<string>>;
 	    body: string;

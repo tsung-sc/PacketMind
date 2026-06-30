@@ -1,5 +1,21 @@
 # PacketMind 更新日志
 
+## [unreleased] - 2026-06-29
+
+### 新增功能
+- **Agent 认知工具套件**：新增 4 个内置认知工具，让 Agent 像人类分析师一样逐步探索 session
+  - `summarize_session`：获取 session 俯视图，按 host 聚合请求数、状态分布、content-type、关键端点、auth 与签名检测
+  - `classify_requests`：自动将请求分类为 auth_entry、token_issuance、signed_request、data_query、auth_request、config_fetch、static_resource、redirect、error、other，并生成 auto_focus_suggestion
+  - `trace_flow_sequence`：按时间序列出请求，自动检测 cookie_flow、token_flow、value_reuse、redirect_chain，并标注 gaps_and_anomalies
+  - `test_hypothesis`：表达式驱动的假设验证工具，支持 EXTRACT/CONCAT/CONCAT_WITH/LOWER/UPPER/MD5/SHA1/SHA256/HMAC_SHA256/BASE64/URLENCODE 操作，对比 computed vs actual 值并返回 match rate
+- **System Prompt 工作流重写**：`agent_role.txt` 新增六阶段分析工作流（Orientation → Identify Key Nodes → Understand Flow → Deep Dive → Test Hypotheses → Report），引导 Agent 先探索再深入
+
+### 代码改进
+- **新增文件**：`internal/agent/tools/builtin/summarize.go`、`classify.go`、`flow.go`、`hypothesis.go`、`hypothesis_parser.go`
+- **Catalog 扩展**：`tools/catalog.go` 新增 `ToolSummarizeSession`、`ToolClassifyRequests`、`ToolTraceFlowSequence`、`ToolTestHypothesis` 常量与 JSON schema
+- **MCP 注册**：`mcp/builtin.go` 新增 4 个 tool definition 与 handler wiring
+- **Exports 扩展**：`builtin/exports.go` 新增 4 个 handler constructor 导出
+
 ## [unreleased] - 2026-06-10
 
 ### 修复问题

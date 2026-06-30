@@ -18,6 +18,10 @@ var (
 	NewDiffRequestsHandler             = newDiffRequestsHandler
 	NewBatchExecuteHandler             = newBatchExecuteHandler
 	NewBashHandler                     = newBashHandler
+	NewSummarizeSessionHandler         = newSummarizeSessionHandler
+	NewClassifyRequestsHandler         = newClassifyRequestsHandler
+	NewTraceFlowSequenceHandler        = newTraceFlowSequenceHandler
+	NewTestHypothesisHandler           = newTestHypothesisHandler
 )
 
 type BuiltinHandlerFunc = tools.BuiltinHandler

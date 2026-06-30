@@ -59,12 +59,12 @@ const (
 )
 
 type ToolParameter struct {
-	Type      DataType                   `json:"type"`
-	Desc      string                     `json:"description,omitempty"`
-	Enum      []string                   `json:"enum,omitempty"`
-	Required  bool                       `json:"required"`
-	ElemInfo  *ToolParameter             `json:"items,omitempty"`
-	SubParams map[string]*ToolParameter  `json:"properties,omitempty"`
+	Type      DataType                  `json:"type"`
+	Desc      string                    `json:"description,omitempty"`
+	Enum      []string                  `json:"enum,omitempty"`
+	Required  bool                      `json:"required"`
+	ElemInfo  *ToolParameter            `json:"items,omitempty"`
+	SubParams map[string]*ToolParameter `json:"properties,omitempty"`
 }
 
 type ToolDefinition struct {
@@ -166,7 +166,7 @@ type TokenUsage struct {
 	CachedPromptTokens int `json:"cached_prompt_tokens,omitempty"`
 	ReasoningTokens    int `json:"reasoning_tokens,omitempty"`
 
-	PromptTokenDetails PromptTokenDetails     `json:"prompt_token_details,omitempty"`
+	PromptTokenDetails      PromptTokenDetails     `json:"prompt_token_details,omitempty"`
 	CompletionTokensDetails CompletionTokenDetails `json:"completion_tokens_details,omitempty"`
 }
 
@@ -260,6 +260,10 @@ func CollectStream(reader *LLMStreamReader) (*LLMMessage, error) {
 }
 
 func CollectStreamWithTextDelta(reader *LLMStreamReader, onDelta func(string)) (*LLMMessage, error) {
+	return CollectStreamWithDeltas(reader, onDelta, nil)
+}
+
+func CollectStreamWithDeltas(reader *LLMStreamReader, onTextDelta func(string), onReasoningDelta func(string)) (*LLMMessage, error) {
 	if reader == nil {
 		return nil, io.EOF
 	}
@@ -286,11 +290,16 @@ func CollectStreamWithTextDelta(reader *LLMStreamReader, onDelta func(string)) (
 		}
 		if delta := msg.Content; delta != "" {
 			assembled.Content += delta
-			if onDelta != nil && len(msg.ToolCalls) == 0 {
-				onDelta(delta)
+			if onTextDelta != nil && len(msg.ToolCalls) == 0 {
+				onTextDelta(delta)
 			}
 		}
-		assembled.ReasoningContent += msg.ReasoningContent
+		if reasoningDelta := msg.ReasoningContent; reasoningDelta != "" {
+			assembled.ReasoningContent += reasoningDelta
+			if onReasoningDelta != nil {
+				onReasoningDelta(reasoningDelta)
+			}
+		}
 		if len(msg.MultiContent) > 0 {
 			assembled.MultiContent = append(assembled.MultiContent, msg.MultiContent...)
 		}

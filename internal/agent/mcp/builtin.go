@@ -32,6 +32,10 @@ func NewBuiltinServer(store *storage.Storage, exec agenttools.ToolExecutor) *ser
 	s.AddTool(builtinDiffRequestsTool(), builtinWrappedHandler(store, builtin.NewDiffRequestsHandler(store)))
 	s.AddTool(builtinBatchExecuteTool(), builtinBatchHandler(exec))
 	s.AddTool(builtinBashTool(), builtinWrappedHandler(store, builtin.NewBashHandler()))
+	s.AddTool(builtinSummarizeSessionTool(), builtinWrappedHandler(store, builtin.NewSummarizeSessionHandler(store)))
+	s.AddTool(builtinClassifyRequestsTool(), builtinWrappedHandler(store, builtin.NewClassifyRequestsHandler(store)))
+	s.AddTool(builtinTraceFlowSequenceTool(), builtinWrappedHandler(store, builtin.NewTraceFlowSequenceHandler(store)))
+	s.AddTool(builtinTestHypothesisTool(), builtinWrappedHandler(store, builtin.NewTestHypothesisHandler(store)))
 
 	return s
 }
@@ -205,5 +209,41 @@ func builtinBashTool() mcp.Tool {
 		mcp.WithString("command", mcp.Required(), mcp.Description("Shell command to execute")),
 		mcp.WithString("workdir", mcp.Description("Working directory for the command (default: data/agent-workspace)")),
 		mcp.WithNumber("timeout", mcp.Description("Timeout in seconds (1-300, default 60)")),
+	)
+}
+
+func builtinSummarizeSessionTool() mcp.Tool {
+	return mcp.NewTool(agenttools.ToolSummarizeSession,
+		mcp.WithDescription("Get a high-level overview of a capture session. Returns host breakdowns, request counts, status distributions, content-type distributions, auth detection, and a timeline overview. Use this as the FIRST step in any analysis."),
+		mcp.WithString("session_id", mcp.Description("Optional session ID")),
+	)
+}
+
+func builtinClassifyRequestsTool() mcp.Tool {
+	return mcp.NewTool(agenttools.ToolClassifyRequests,
+		mcp.WithDescription("Automatically classify requests in a session by their likely role: auth_entry, token_issuance, signed_request, data_query, auth_request, config_fetch, static_resource, redirect, error, other. Returns a categorized list with key findings."),
+		mcp.WithString("session_id", mcp.Description("Optional session ID filter")),
+		mcp.WithString("host", mcp.Description("Optional host filter")),
+		mcp.WithNumber("limit", mcp.Description("Max results per category (1-50, default 10)")),
+	)
+}
+
+func builtinTraceFlowSequenceTool() mcp.Tool {
+	return mcp.NewTool(agenttools.ToolTraceFlowSequence,
+		mcp.WithDescription("List requests in chronological order and detect field flow relationships — cookie set/use, token issuance/consumption, redirect chains, value reuse. Annotates flow edges showing how data moves through the session."),
+		mcp.WithString("session_id", mcp.Description("Optional session ID filter")),
+		mcp.WithString("host", mcp.Description("Optional host filter")),
+		mcp.WithArray("focus_fields", mcp.Description("Optional field names to track")),
+		mcp.WithNumber("max_requests", mcp.Description("Max requests (10-100, default 50)")),
+	)
+}
+
+func builtinTestHypothesisTool() mcp.Tool {
+	return mcp.NewTool(agenttools.ToolTestHypothesis,
+		mcp.WithDescription("Test a hypothesis about how a field value is generated. Given request IDs and a hypothesis composed of operations (field extraction, concatenation, hash, HMAC, base64, etc.), this tool tests against actual values and returns match rate."),
+		mcp.WithString("request_ids", mcp.Required(), mcp.Description("Request IDs to test (minimum 3)")),
+		mcp.WithString("target_field", mcp.Required(), mcp.Description("Field to verify, e.g. 'sign', 'Authorization', 'token'")),
+		mcp.WithString("target_location", mcp.Required(), mcp.Description("'body', 'header', 'query', 'response_body', 'response_header', 'cookie'")),
+		mcp.WithString("hypothesis", mcp.Required(), mcp.Description("Structured generation rule. E.g. 'MD5(CONCAT(timestamp, body_raw))', 'HMAC_SHA256(CONCAT(method,path,timestamp), secret=EXTRACT(response_body,$.data.secret))'")),
 	)
 }

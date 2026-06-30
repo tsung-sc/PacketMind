@@ -13,11 +13,19 @@ import (
 
 type ExecuteToolFunc func(ctx context.Context, name, arguments, sessionID string) *SafeToolResult
 
+type Intervention struct {
+	ID      string
+	Content string
+}
+
+type InterventionFunc func() []Intervention
+
 type AgentEvent struct {
 	Depth          int       `json:"depth"`
 	Type           string    `json:"type"`
 	Content        string    `json:"content,omitempty"`
 	ToolName       string    `json:"tool_name,omitempty"`
+	ToolCallID     string    `json:"tool_call_id,omitempty"`
 	Arguments      string    `json:"arguments,omitempty"`
 	Result         string    `json:"result,omitempty"`
 	RequestIDs     []string  `json:"request_ids,omitempty"`
@@ -32,6 +40,8 @@ type AgentEvent struct {
 
 	RetryAttempt int `json:"retry_attempt,omitempty"`
 	RetryMax     int `json:"retry_max,omitempty"`
+
+	InterventionID string `json:"intervention_id,omitempty"`
 }
 
 type AgentEventHandler func(event AgentEvent)
@@ -63,6 +73,7 @@ type Runner struct {
 	systemPrompt string
 	model        string
 	sessionID    string
+	intervention InterventionFunc
 	executeTool  ExecuteToolFunc
 }
 
@@ -101,6 +112,14 @@ func WithExecuteTool(fn ExecuteToolFunc) RunnerOption {
 	return func(r *Runner) {
 		if r != nil {
 			r.executeTool = fn
+		}
+	}
+}
+
+func WithIntervention(fn InterventionFunc) RunnerOption {
+	return func(r *Runner) {
+		if r != nil {
+			r.intervention = fn
 		}
 	}
 }
@@ -155,6 +174,27 @@ func (r *Runner) Run(ctx context.Context, input []*llmtypes.LLMMessage, onEvent 
 			return nil, err
 		}
 
+		if r.intervention != nil {
+			for _, item := range r.intervention() {
+				if trimmed := strings.TrimSpace(item.Content); trimmed != "" {
+					transcript = append(transcript, &llmtypes.LLMMessage{Role: llmtypes.RoleUser, Content: "User intervention while you were working. Treat this as the latest steering instruction and adjust your next step:\n" + trimmed})
+					if onEvent != nil && strings.TrimSpace(item.ID) != "" {
+						onEvent(AgentEvent{Type: "intervention_applied", InterventionID: item.ID, CreatedAt: time.Now()})
+					}
+				}
+			}
+		}
+
+		if onEvent != nil {
+			onEvent(AgentEvent{
+				Depth:     depth,
+				Type:      "thinking",
+				Content:   "thinking...",
+				ToolCalls: toolCalls,
+				CreatedAt: time.Now(),
+			})
+		}
+
 		reader, err := r.client.Stream(ctx, transcript, llmtypes.WithModel(r.model), llmtypes.WithTools(r.tools))
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -186,8 +226,6 @@ func (r *Runner) Run(ctx context.Context, input []*llmtypes.LLMMessage, onEvent 
 		if text := assistantTerminalAnswerText(assistant); text != "" {
 			lastAssistantTerminalText = text
 		}
-
-		emitThoughtFromMessage(onEvent, depth, toolCalls, assistant)
 
 		if len(assistant.ToolCalls) == 0 {
 			result.FinalAnswer = extractFinalAnswer(assistant, lastAssistantTerminalText)
@@ -264,9 +302,10 @@ func (r *Runner) collectStreamWithDelta(
 	depth, toolCalls int,
 	onEvent AgentEventHandler,
 ) (*llmtypes.LLMMessage, error) {
-	var onDelta func(string)
+	var onTextDelta func(string)
+	var onReasoningDelta func(string)
 	if onEvent != nil {
-		onDelta = func(delta string) {
+		onTextDelta = func(delta string) {
 			if ctx.Err() != nil {
 				return
 			}
@@ -278,6 +317,18 @@ func (r *Runner) collectStreamWithDelta(
 				CreatedAt: time.Now(),
 			})
 		}
+		onReasoningDelta = func(delta string) {
+			if ctx.Err() != nil {
+				return
+			}
+			onEvent(AgentEvent{
+				Depth:     depth,
+				Type:      "thought",
+				Content:   delta,
+				ToolCalls: toolCalls,
+				CreatedAt: time.Now(),
+			})
+		}
 	}
-	return llmtypes.CollectStreamWithTextDelta(reader, onDelta)
+	return llmtypes.CollectStreamWithDeltas(reader, onTextDelta, onReasoningDelta)
 }

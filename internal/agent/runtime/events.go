@@ -10,8 +10,11 @@ import (
 )
 
 func emitThoughtFromMessage(onEvent AgentEventHandler, depth, toolCallCount int, msg *llmtypes.LLMMessage) {
-	content := strings.TrimSpace(msgReasoningOrContent(msg))
-	if content == "" || onEvent == nil {
+	if msg == nil || onEvent == nil {
+		return
+	}
+	content := strings.TrimSpace(msg.ReasoningContent)
+	if content == "" {
 		return
 	}
 
@@ -32,12 +35,13 @@ func emitActionsFromMessage(onEvent AgentEventHandler, depth, toolCallCount int,
 	for _, call := range msg.ToolCalls {
 		toolCallCount++
 		onEvent(AgentEvent{
-			Depth:     depth,
-			Type:      "action",
-			ToolName:  call.Function.Name,
-			Arguments: call.Function.Arguments,
-			ToolCalls: toolCallCount,
-			CreatedAt: time.Now(),
+			Depth:      depth,
+			Type:       "action",
+			ToolName:   call.Function.Name,
+			ToolCallID: call.ID,
+			Arguments:  call.Function.Arguments,
+			ToolCalls:  toolCallCount,
+			CreatedAt:  time.Now(),
 		})
 	}
 
@@ -63,6 +67,7 @@ func emitObservationFromMessage(onEvent AgentEventHandler, depth, toolCallCount 
 		Type:           "observation",
 		Content:        summary,
 		ToolName:       msg.ToolName,
+		ToolCallID:     msg.ToolCallID,
 		Result:         result,
 		RequestIDs:     metadata.RequestIDs,
 		ToolCalls:      toolCallCount,
@@ -109,16 +114,6 @@ func toolResultMessage(call llmtypes.ToolCall, safeResult *SafeToolResult) *llmt
 	content, _ := toolExecutionResultToString(safeResult.Result)
 	msg.Content = content
 	return msg
-}
-
-func msgReasoningOrContent(msg *llmtypes.LLMMessage) string {
-	if msg == nil {
-		return ""
-	}
-	if text := strings.TrimSpace(msg.ReasoningContent); text != "" {
-		return text
-	}
-	return strings.TrimSpace(msg.Content)
 }
 
 func assistantTerminalAnswerText(msg *llmtypes.LLMMessage) string {
@@ -190,6 +185,20 @@ func extractObservationEventMetadata(toolName, raw string) observationEventMetad
 	}
 
 	meta.RequestIDs = uniqueStrings(append(meta.RequestIDs, collectRequestIDsFromPayload(payload)...))
+
+	if ok, hasOK := payload["ok"].(bool); hasOK && ok {
+		return meta
+	}
+	if _, hasError := payload["error"]; !hasError {
+		if _, hasCategory := payload["category"]; !hasCategory {
+			if _, hasTimeout := payload["timeout"]; !hasTimeout {
+				if _, hasRecovered := payload["recovered"]; !hasRecovered {
+					return meta
+				}
+			}
+		}
+	}
+
 	meta.ErrorCategory = stringFromMap(payload, "category")
 	meta.ErrorToolName = stringFromMap(payload, "tool_name")
 	meta.ErrorTimeout = stringFromMap(payload, "timeout")

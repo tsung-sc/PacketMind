@@ -129,7 +129,8 @@ func toLLMMessage(completion openaisdk.ChatCompletion) *llmtypes.LLMMessage {
 	}
 	choice := completion.Choices[0]
 	msg.ResponseMeta.FinishReason = choice.FinishReason
-	msg.Content = contentWithReasoning(choice.Message.Content, extraFieldString(choice.Message.JSON.ExtraFields, "reasoning_content"))
+	msg.Content = choice.Message.Content
+	msg.ReasoningContent = extraFieldString(choice.Message.JSON.ExtraFields, "reasoning_content")
 	msg.ToolCalls = toLLMToolCalls(choice.Message.ToolCalls)
 	if msg.ResponseMeta.FinishReason == "" && msg.ResponseMeta.Usage == nil {
 		msg.ResponseMeta = nil
@@ -261,18 +262,6 @@ func decodeMessageContent(raw json.RawMessage) string {
 		return builder.String()
 	}
 	return trimmed
-}
-
-func contentWithReasoning(content, reasoning string) string {
-	reasoning = strings.TrimSpace(reasoning)
-	content = strings.TrimSpace(content)
-	if reasoning == "" {
-		return content
-	}
-	if content == "" {
-		return reasoning
-	}
-	return reasoning + "\n\n" + content
 }
 
 func extraFieldString(fields map[string]respjson.Field, key string) string {
