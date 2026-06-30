@@ -1,5 +1,5 @@
 <template>
-  <div :class="$style.container">
+  <div :class="[$style.container, orientation === 'horizontal' ? $style.horizontal : '']">
     <div :class="$style.header">
       <span :class="$style.title">Sessions</span>
       <div :class="$style.headerActions">
@@ -106,6 +106,14 @@ import { useSessionStore } from '@/stores/sessionStore';
 import { useAgentStore } from '@/stores/agentStore';
 import type { Session } from '@/types';
 import dayjs from 'dayjs';
+
+const props = withDefaults(defineProps<{
+  orientation?: 'vertical' | 'horizontal';
+}>(), {
+  orientation: 'vertical',
+});
+
+const orientation = props.orientation;
 
 const emit = defineEmits<{
   (e: 'sessionChange', sessionId: string): void;
@@ -293,6 +301,51 @@ onUnmounted(() => {
   background-color: #e8e8e8;
   border-left: 1px solid #9f9f9f;
   color: #1f1f1f;
+}
+
+.horizontal {
+  flex-direction: row;
+  align-items: stretch;
+  height: 100%;
+  border-left: 0;
+}
+
+.horizontal .header {
+  width: 128px;
+  padding: 4px 8px;
+  border-right: 1px solid #a9a9a9;
+  border-bottom: 0;
+}
+
+.horizontal .list {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: stretch;
+}
+
+.horizontal .sessionItem {
+  width: 180px;
+  min-width: 150px;
+  max-width: 220px;
+  border-right: 1px solid #d5d5d5;
+  border-bottom: 0;
+  padding: 4px 9px;
+}
+
+.horizontal .sessionItem::before {
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: 0;
+  width: auto;
+  height: 3px;
+}
+
+.horizontal .sessionMeta {
+  display: none;
 }
 
 .header {

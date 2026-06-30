@@ -129,9 +129,10 @@ export interface AnalysisRequest {
 
 export interface AgentEvent {
   depth: number;
-  type: 'start' | 'thought' | 'action' | 'observation' | 'final' | 'warning' | 'decision' | 'text_delta' | 'provider_retry';
+  type: 'start' | 'thinking' | 'thought' | 'action' | 'observation' | 'final' | 'warning' | 'decision' | 'text_delta' | 'provider_retry' | 'intervention_applied';
   content?: string;
   tool_name?: string;
+  tool_call_id?: string;
   arguments?: string;
   result?: string;
   request_ids?: string[];
@@ -144,6 +145,7 @@ export interface AgentEvent {
   error_recovered?: boolean;
   retry_attempt?: number;
   retry_max?: number;
+  intervention_id?: string;
 }
 
 export interface TokenUsage {

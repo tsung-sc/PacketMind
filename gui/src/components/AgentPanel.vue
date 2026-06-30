@@ -90,198 +90,93 @@
           <p>Use field actions elsewhere when you want request-aware analysis.</p>
         </div>
 
-        <template v-for="(group, gIdx) in messageGroups" :key="group.key">
-          <!-- Turn Divider before user messages -->
-          <div v-if="group.type === 'normal' && group.messages[0]?.role === 'user'" :class="$style.turnDivider">
-            <span :class="$style.turnDividerTime">{{ formatTime(group.messages[0].timestamp) }}</span>
-            <div :class="$style.turnDividerLine"></div>
-          </div>
-
-          <!-- Inline ReAct cycle step -->
-          <div v-if="group.type === 'cycle'" :class="$style.timelineItem">
-            <div :class="$style.timelineLeft">
-              <div :class="$style.stepCircle">{{ group.cycle!.stepNumber }}</div>
-              <div v-if="group.hasMore" :class="$style.stepLine"></div>
-            </div>
-            <div :class="$style.timelineRight">
-              <div
-                :class="[$style.cycleSummary, isCycleExpanded(group.cycle!) ? $style.cycleSummaryExpanded : '', group.cycle!.observation?.role === 'agent_error' ? $style.cycleSummaryError : '']"
-                @click="toggleCycleExpanded(group.cycle!.id)"
-              >
-                <span :class="$style.cycleSummaryStep">Step {{ group.cycle!.stepNumber }}</span>
-                <span :class="$style.cycleSummaryText">{{ cycleSummary(group.cycle!) }}</span>
-                <span v-if="getDuration(group.cycle!)" :class="$style.stepDuration">{{ getDuration(group.cycle!) }}</span>
-              </div>
-              <template v-if="isCycleExpanded(group.cycle!)">
-                <div :class="$style.cycleHeader">
-                  <span v-if="group.cycle!.specialistName" :class="$style.specialistBadge">{{ group.cycle!.specialistName }}</span>
-                </div>
-
-              <div v-if="group.cycle!.thought" :class="[$style.cycleBox, $style.thoughtBox]">
-                <div :class="$style.boxRole">💭 Thought</div>
-                <div :class="$style.boxContent" v-html="renderMarkdown(group.cycle!.thought.content)"></div>
-              </div>
-
-              <div v-if="group.cycle!.action" :class="[$style.cycleBox, $style.toolBox]">
-                <div :class="$style.toolCard" @click="toggleToolExpanded(group.cycle!.id)">
-                  <div :class="$style.toolCardHeader">
-                    <span :class="$style.toolCardTitle">🔧 {{ group.cycle!.action.toolName }}</span>
-                    <div :class="$style.toolCardStatus">
-                      <span v-if="!group.cycle!.observation" :class="$style.statusPulse"></span>
-                      <span v-else-if="group.cycle!.observation.role === 'agent_error'" :class="$style.statusError">✗</span>
-                      <span v-else :class="$style.statusSuccess">✓</span>
-                    </div>
-                  </div>
-                  <div v-if="toolExpanded.get(group.cycle!.id)" :class="$style.toolCardBody" @click.stop>
-                    <div v-if="group.cycle!.action.arguments" :class="$style.toolArgs">
-                      <div :class="$style.toolSectionTitle">Arguments</div>
-                      <pre><code>{{ formatArgs(group.cycle!.action.arguments) }}</code></pre>
-                    </div>
-
-                    <div v-if="group.cycle!.observation" :class="[$style.toolResult, group.cycle!.observation.role === 'agent_error' ? $style.toolResultError : '']">
-                      <div :class="$style.toolSectionTitle">Result</div>
-                      <div :class="$style.boxContent" v-html="renderMarkdown(group.cycle!.observation.content)"></div>
-
-                      <div v-if="group.cycle!.observation.role === 'agent_error'" :class="$style.errorMeta">
-                        <span v-if="group.cycle!.observation.errorCategory">category={{ group.cycle!.observation.errorCategory }}</span>
-                        <span v-if="group.cycle!.observation.errorToolName">tool={{ group.cycle!.observation.errorToolName }}</span>
-                        <span v-if="group.cycle!.observation.errorTimeout">timeout={{ group.cycle!.observation.errorTimeout }}</span>
-                        <span v-if="typeof group.cycle!.observation.errorRecovered === 'boolean'">recovered={{ group.cycle!.observation.errorRecovered }}</span>
-                      </div>
-
-                      <div v-if="group.cycle!.observation.role === 'agent_error'" :class="$style.errorActions">
-                        <button type="button" :class="$style.errorActionBtn" :disabled="agentStore.streaming || !agentStore.lastUserQuery" @click.stop="retryLastQuery">Retry</button>
-                        <button type="button" :class="$style.errorActionBtn" @click.stop="copyError(group.cycle!)">Copy Error</button>
-                      </div>
-
-                      <div v-if="group.cycle!.observation.requestIds && group.cycle!.observation.requestIds.length > 0" :class="$style.requestIds">
-                        <span>Related: </span>
-                        <a-tag v-for="id in group.cycle!.observation.requestIds.slice(0, 3)" :key="id" size="small" @click.stop="jumpToRequest(id)">{{ shortId(id) }}</a-tag>
-                        <span v-if="group.cycle!.observation.requestIds.length > 3">+{{ group.cycle!.observation.requestIds.length - 3 }} more</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div v-if="group.cycle!.decision" :class="[$style.cycleBox, $style.decisionBox]">
-                <div :class="$style.boxRole">🎯 Decision</div>
-                <div :class="$style.boxContent">{{ group.cycle!.decision.content }}</div>
-              </div>
-
-              <div v-if="group.cycle!.retry" :class="[$style.cycleBox, $style.retryBox]">
-                <div :class="$style.retryContent">
-                  <span :class="$style.retryIcon">🔄</span>
-                  <span>{{ group.cycle!.retry.content }}</span>
-                </div>
-              </div>
-              </template>
+        <template v-for="turn in chatTurns" :key="turn.key">
+          <div v-if="turn.user" :class="[$style.message, $style.user]">
+            <div :class="$style.role">You <span v-if="turn.user.deliveryStatus" :class="$style.deliveryBadge">{{ turn.user.deliveryStatus === 'queued' ? 'queued' : 'sent' }}</span></div>
+            <div :class="$style.content">
+              <p>{{ turn.user.content }}</p>
             </div>
           </div>
 
-          <!-- Normal messages (user, assistant, related, provenance) -->
-          <template v-if="group.type === 'normal'">
-            <div v-for="msg in group.messages" :key="msg.id" :class="[$style.message, $style[msg.role]]">
-              <div :class="$style.role">
-                <template v-if="msg.role === 'user'">👤 You</template>
-                <template v-else-if="msg.role === 'agent_related'">🔗 Related Requests</template>
-                <template v-else-if="msg.role === 'agent_provenance'">🧬 Provenance Chain</template>
-                <template v-else>🤖 Agent</template>
-              </div>
-              <div :class="$style.content">
-                <div v-if="msg.role === 'assistant'">
-                  <div v-html="renderMarkdown(msg.content)"></div>
-                </div>
-                <div v-else-if="msg.role === 'agent_related'" :class="$style.relatedTimeline">
-                  <div :class="$style.relatedHeader">Related Requests ({{ msg.requestIds?.length || 0 }})</div>
-                  <div :class="$style.relatedIds">
-                    <a-button
-                      v-for="id in (msg.requestIds || []).slice(0, 10)"
-                      :key="id"
-                      type="link"
-                      size="small"
-                      :class="$style.relatedRequestBtn"
-                      @click="jumpToRequest(id)"
-                    >
-                      {{ shortId(id) }}
-                    </a-button>
-                    <span v-if="(msg.requestIds?.length || 0) > 10" :class="$style.moreCount">
-                      +{{ (msg.requestIds?.length || 0) - 10 }} more
-                    </span>
+          <div v-if="turn.items.length > 0 || turn.isActive" :class="[$style.message, $style.assistant, $style.agentTurn]">
+            <div :class="$style.role">Agent</div>
+            <div :class="$style.content">
+              <div v-if="turn.items.length > 0" :class="$style.agentStepFlow">
+                <template v-for="item in turn.items" :key="item.key">
+                  <div v-if="item.type === 'thought' && item.message" :class="[$style.cycleBox, $style.thoughtBox]">
+                    <button type="button" :class="$style.thoughtToggle" @click="toggleThoughtExpanded(item.key)">
+                      <span>Thinking</span>
+                      <span>{{ isThoughtExpanded(item.key) ? '-' : '+' }}</span>
+                    </button>
+                    <div v-if="isThoughtExpanded(item.key)" :class="$style.boxContent" v-html="renderMarkdown(item.message.content)"></div>
                   </div>
-                </div>
-                <div v-else-if="msg.role === 'agent_provenance' && msg.provenance" :class="$style.provenanceSection">
-                  <div :class="$style.provenanceHeader">
-                    <span>Provenance Chain</span>
-                    <span :class="$style.provenanceConfidence">{{ formatConfidence(msg.provenance.confidence) }}</span>
-                  </div>
-                  <div :class="$style.provenanceTarget">
-                    <span :class="$style.provenanceLabel">Target</span>
-                    <span :class="$style.provenanceField">{{ msg.provenance.target_artifact.location }}.{{ msg.provenance.target_artifact.name }}</span>
-                    <span :class="$style.provenanceValue">{{ truncateValue(msg.provenance.target_artifact.value) }}</span>
-                  </div>
-                  <div :class="$style.provenanceLinks">
-                    <div v-for="(link, idx) in msg.provenance.links.slice(0, 3)" :key="`${link.source_request_id}_${idx}`" :class="$style.provenanceLink">
-                      <div :class="$style.provenanceLinkTop">
-                        <a-button type="link" size="small" :class="$style.provenanceRequestBtn" @click="jumpToRequest(link.source_request_id)">
-                          {{ shortId(link.source_request_id) }}
-                        </a-button>
-                        <span :class="$style.provenanceArrow">→</span>
-                        <a-button type="link" size="small" :class="$style.provenanceRequestBtn" @click="jumpToRequest(link.target_request_id)">
-                          {{ shortId(link.target_request_id) }}
-                        </a-button>
-                        <span :class="$style.provenanceScore">{{ formatConfidence(link.confidence) }}</span>
+
+                  <div v-else-if="item.type === 'assistant' && item.message" :class="$style.answerBlock" v-html="renderMarkdown(item.message.content)"></div>
+
+                  <div v-else-if="item.type === 'tool' && item.cycle" :class="[$style.cycleBox, $style.toolBox]">
+                    <div :class="$style.toolCard" @click="toggleToolExpanded(item.cycle.id)">
+                      <div :class="$style.toolCardHeader">
+                        <span :class="$style.toolCardTitle">Tool - {{ item.cycle.action?.toolName }}</span>
+                        <div :class="$style.toolCardStatus">
+                          <span v-if="!item.cycle.observation" :class="$style.statusPulse"></span>
+                          <span v-else-if="item.cycle.observation.role === 'agent_error'" :class="$style.statusError">Failed</span>
+                          <span v-else :class="$style.statusSuccess">Done</span>
+                        </div>
                       </div>
-                      <div :class="$style.provenanceFields">
-                        <span>{{ link.source_artifact.location }}.{{ link.source_artifact.name }}</span>
-                        <span v-if="link.transform_type" :class="$style.provenanceTransform">{{ link.transform_type }}</span>
-                        <span>{{ link.target_artifact.location }}.{{ link.target_artifact.name }}</span>
-                      </div>
-                      <div :class="$style.provenanceMeta">
-                        <span>{{ truncateValue(link.source_artifact.value) }}</span>
-                        <span>{{ Math.max(link.time_delta_ms, 0) }}ms later</span>
-                        <span v-if="link.same_session">same session</span>
-                        <span v-if="link.same_host">same host</span>
+                      <div v-if="toolExpanded.get(item.cycle.id)" :class="$style.toolCardBody" @click.stop>
+                        <div v-if="item.cycle.action?.arguments" :class="$style.toolArgs">
+                          <div :class="$style.toolSectionTitle">Arguments</div>
+                          <pre><code>{{ formatArgs(item.cycle.action.arguments) }}</code></pre>
+                        </div>
+                        <div v-if="item.cycle.observation" :class="[$style.toolResult, item.cycle.observation.role === 'agent_error' ? $style.toolResultError : '']">
+                          <div :class="$style.toolSectionTitle">Result</div>
+                          <div :class="$style.boxContent" v-html="renderMarkdown(item.cycle.observation.content)"></div>
+                          <div v-if="item.cycle.observation.role === 'agent_error'" :class="$style.errorMeta">
+                            <span v-if="item.cycle.observation.errorCategory">category={{ item.cycle.observation.errorCategory }}</span>
+                            <span v-if="item.cycle.observation.errorToolName">tool={{ item.cycle.observation.errorToolName }}</span>
+                            <span v-if="item.cycle.observation.errorTimeout">timeout={{ item.cycle.observation.errorTimeout }}</span>
+                            <span v-if="typeof item.cycle.observation.errorRecovered === 'boolean'">recovered={{ item.cycle.observation.errorRecovered }}</span>
+                          </div>
+                          <div v-if="item.cycle.observation.role === 'agent_error'" :class="$style.errorActions">
+                            <button type="button" :class="$style.errorActionBtn" :disabled="agentStore.streaming || !agentStore.lastUserQuery" @click.stop="retryLastQuery">Retry</button>
+                            <button type="button" :class="$style.errorActionBtn" @click.stop="copyError(item.cycle)">Copy Error</button>
+                          </div>
+                          <div v-if="item.cycle.observation.requestIds && item.cycle.observation.requestIds.length > 0" :class="$style.requestIds">
+                            <span>Related: </span>
+                            <a-tag v-for="id in item.cycle.observation.requestIds.slice(0, 3)" :key="id" size="small" @click.stop="jumpToRequest(id)">{{ shortId(id) }}</a-tag>
+                            <span v-if="item.cycle.observation.requestIds.length > 3">+{{ item.cycle.observation.requestIds.length - 3 }} more</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <div v-if="msg.provenance.evidence.length > 0" :class="$style.provenanceEvidence">
-                    <div :class="$style.provenanceEvidenceTitle">Evidence</div>
-                    <div v-for="(item, idx) in msg.provenance.evidence" :key="`evidence_${idx}`" :class="$style.provenanceEvidenceItem">
-                      {{ item }}
+
+                  <div v-else-if="item.type === 'observation' && item.message" :class="[$style.cycleBox, item.message.role === 'agent_error' ? $style.toolResultError : $style.toolResult]">
+                    <div :class="$style.boxRole">Tool Result</div>
+                    <div :class="$style.boxContent" v-html="renderMarkdown(item.message.content)"></div>
+                  </div>
+
+                  <div v-else-if="item.type === 'decision' && item.message" :class="[$style.cycleBox, $style.decisionBox]">
+                    <div :class="$style.boxRole">Decision</div>
+                    <div :class="$style.boxContent">{{ item.message.content }}</div>
+                  </div>
+
+                  <div v-else-if="item.type === 'retry' && item.message" :class="[$style.cycleBox, $style.retryBox]">
+                    <div :class="$style.retryContent">
+                      <span>{{ item.message.content }}</span>
                     </div>
                   </div>
-                </div>
-                <p v-else>{{ msg.content }}</p>
+                </template>
               </div>
+
+              <div v-if="turn.isActive && agentStore.llmWaiting && !agentStore.currentContent" :class="$style.inlineThinking">
+                <span :class="$style.stepCircleLoading"></span>
+                <span :class="$style.shimmerText">thinking...</span>
+              </div>
+              <div v-if="turn.isActive && agentStore.currentContent" :class="$style.answerBlock" v-html="renderMarkdown(agentStore.currentContent)"></div>
             </div>
-          </template>
+          </div>
         </template>
-
-        <!-- Shimmer indicator when agent is working -->
-        <div v-if="agentStore.streaming && !agentStore.currentContent && hasTraceMessages" :class="$style.timelineItem">
-          <div :class="$style.timelineLeft">
-            <div :class="$style.stepCircleLoading"></div>
-          </div>
-          <div :class="$style.timelineRight">
-            <div :class="$style.shimmerText">思考中...</div>
-          </div>
-        </div>
-
-        <div v-if="agentStore.streaming && !agentStore.currentContent && !hasNonUserTimelineMessage && !hasTraceMessages" :class="[$style.message, $style.assistant]">
-          <div :class="$style.role">🤖 Agent</div>
-          <div :class="$style.content">
-            <a-spin size="small" /> Analyzing...
-          </div>
-        </div>
-
-        <div v-if="agentStore.streaming && agentStore.currentContent" :class="[$style.message, $style.assistant]">
-          <div :class="$style.role">🤖 Agent</div>
-          <div :class="$style.content">
-            <div v-html="renderMarkdown(agentStore.currentContent)"></div>
-          </div>
-        </div>
-
         <div v-if="agentStore.hasPendingQuery">
           <div v-for="(item, idx) in agentStore.pendingQueue" :key="'pending_' + idx" :class="[$style.message, $style.user, $style.pendingMessage]">
             <div :class="$style.role">👤 You <span :class="$style.pendingTag">(Pending...)</span></div>
@@ -331,7 +226,7 @@
     <div :class="$style.input">
       <div v-if="agentStore.pendingQueue.length > 0" :class="$style.pendingIndicator">
         <a-spin size="small" />
-        <span>{{ agentStore.pendingQueue.length }} queued message(s)</span>
+        <span>{{ agentStore.pendingQueue.length }} queued for next run</span>
       </div>
       <div v-if="contextChips.length > 0" :class="$style.contextChips">
         <span
@@ -345,19 +240,18 @@
       </div>
       <a-textarea
         v-model:value="input"
-        :placeholder="agentStore.streaming ? 'Add to queue...' : 'Ask anything...'"
+            :placeholder="agentStore.streaming ? 'Steer current analysis...' : 'Ask anything...'"
         :autoSize="{ minRows: 2, maxRows: 4 }"
         @keydown.enter="handleEnter"
       />
       <div :class="$style.inputActions">
-        <a-button
-          v-if="agentStore.streaming"
-          type="default"
-          danger
-          @click="handleStop"
-        >
-          <template #icon><StopOutlined /></template>
-        </a-button>
+        <template v-if="agentStore.streaming">
+          <a-button type="default" @click="handleQueue" :disabled="!input.trim()">Queue</a-button>
+          <a-button type="primary" @click="handleSend" :disabled="!input.trim()">Steer</a-button>
+          <a-button type="default" danger @click="handleStop">
+            <template #icon><StopOutlined /></template>
+          </a-button>
+        </template>
         <a-button
           v-else
           type="primary"
@@ -397,15 +291,20 @@ interface ReActCycle {
   isStreaming?: boolean;
 }
 
-type MessageGroup = {
+interface AgentTurnItem {
   key: string;
-  type: 'cycle' | 'normal';
-  messages: Message[];
-  preview: Message;
+  type: 'thought' | 'assistant' | 'tool' | 'observation' | 'decision' | 'retry';
+  message?: Message;
   cycle?: ReActCycle;
-  hasMore?: boolean;
-  isLastCycle?: boolean;
-};
+}
+
+interface ChatTurn {
+  key: string;
+  user?: Message;
+  messages: Message[];
+  items: AgentTurnItem[];
+  isActive: boolean;
+}
 
 const agentStore = useAgentStore();
 const requestStore = useRequestStore();
@@ -419,21 +318,17 @@ const dismissedRequestContextId = ref<string | null>(null);
 const isAutoFollowing = ref(true);
 
 const toolExpanded = reactive(new Map<string, boolean>());
-const cycleExpanded = reactive(new Map<string, boolean>());
+const thoughtExpanded = reactive(new Map<string, boolean>());
 
 const toggleToolExpanded = (cycleId: string) => {
   toolExpanded.set(cycleId, !toolExpanded.get(cycleId));
 };
 
-const toggleCycleExpanded = (cycleId: string) => {
-  cycleExpanded.set(cycleId, !cycleExpanded.get(cycleId));
+const toggleThoughtExpanded = (key: string) => {
+  thoughtExpanded.set(key, !thoughtExpanded.get(key));
 };
 
-const isCycleExpanded = (cycle: ReActCycle) => {
-  if (agentStore.traceExpanded) return true;
-  if (agentStore.streaming && cycle.isStreaming) return true;
-  return cycleExpanded.get(cycle.id) === true;
-};
+const isThoughtExpanded = (key: string) => thoughtExpanded.get(key) === true;
 
 const handleScroll = (e: Event) => {
   const target = e.target as HTMLElement;
@@ -495,8 +390,6 @@ const filteredFallbackModels = computed(() => {
     return searchable.includes(keyword);
   });
 });
-const hasNonUserTimelineMessage = computed(() => agentStore.messages.some((msg) => msg.role !== 'user'));
-const hasTraceMessages = computed(() => agentStore.messages.some((msg) => isTraceRole(msg.role)));
 const effectiveRequestId = computed(() => {
   const selectedId = requestStore.selectedId;
   if (!selectedId || dismissedRequestContextId.value === selectedId) return undefined;
@@ -517,139 +410,111 @@ const contextChips = computed(() => {
 
 const isTraceRole = (role: string) => ['agent_thought', 'agent_action', 'agent_observation', 'agent_error', 'agent_decision', 'agent_retry'].includes(role);
 
-const buildCycles = (messages: Message[]): ReActCycle[] => {
-  const cycles: ReActCycle[] = [];
-  let cur: Partial<ReActCycle> = {};
-  let step = 1;
-
-  for (const msg of messages) {
+const buildTurnItems = (messages: Message[]): AgentTurnItem[] => {
+  const items: AgentTurnItem[] = [];
+  const pendingTools: AgentTurnItem[] = [];
+  const toolsByCallId = new Map<string, AgentTurnItem>();
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
     if (msg.role === 'agent_thought') {
-      if (cur.action || cur.decision) {
-        if (!cur.id) cur.id = 'cycle_' + step;
-        cycles.push(cur as ReActCycle);
-        cur = { stepNumber: ++step };
+      items.push({ key: msg.id, type: 'thought', message: msg });
+      continue;
+    }
+    if (msg.role === 'assistant') {
+      items.push({ key: msg.id, type: 'assistant', message: msg });
+      continue;
+    }
+    if (msg.role === 'agent_action') {
+      const item: AgentTurnItem = {
+        key: msg.id,
+        type: 'tool',
+        cycle: {
+          id: msg.id,
+          stepNumber: items.length + 1,
+          action: msg,
+          specialistName: msg.specialistName,
+        },
+      };
+      items.push(item);
+      pendingTools.push(item);
+      if (msg.toolCallId) {
+        toolsByCallId.set(msg.toolCallId, item);
       }
-      if (!cur.stepNumber) cur.stepNumber = step;
-      cur.thought = msg;
-      cur.specialistName = msg.specialistName || cur.specialistName;
-    } else if (msg.role === 'agent_action') {
-      if (cur.action) {
-        if (!cur.id) cur.id = 'cycle_' + step;
-        cycles.push(cur as ReActCycle);
-        cur = { stepNumber: ++step, thought: cur.thought };
+      continue;
+    }
+    if (msg.role === 'agent_observation' || msg.role === 'agent_error') {
+      const exactTool = msg.toolCallId ? toolsByCallId.get(msg.toolCallId) : undefined;
+      const fallbackTool = [...items]
+        .reverse()
+        .find((item) => item.type === 'tool' && item.cycle && !item.cycle.observation)
+        || [...items].reverse().find((item) => item.type === 'tool' && item.cycle);
+      const pendingTool = exactTool || pendingTools.shift() || fallbackTool;
+      if (exactTool) {
+        const pendingIndex = pendingTools.indexOf(exactTool);
+        if (pendingIndex >= 0) pendingTools.splice(pendingIndex, 1);
       }
-      if (!cur.stepNumber) cur.stepNumber = step;
-      cur.id = msg.id;
-      cur.action = msg;
-      cur.specialistName = msg.specialistName || cur.specialistName;
-    } else if (msg.role === 'agent_observation' || msg.role === 'agent_error') {
-      if (!cur.stepNumber) cur.stepNumber = step;
-      cur.observation = msg;
-      if (!cur.id) cur.id = msg.id;
-      cycles.push(cur as ReActCycle);
-      cur = { stepNumber: ++step };
-    } else if (msg.role === 'agent_decision') {
-      if (cur.thought || cur.action) {
-        if (!cur.id) cur.id = 'cycle_' + step;
-        cycles.push(cur as ReActCycle);
-        cur = { stepNumber: ++step };
+      if (pendingTool?.cycle) {
+        pendingTool.cycle.observation = msg;
+        continue;
       }
-      if (!cur.stepNumber) cur.stepNumber = step;
-      cur.id = msg.id;
-      cur.decision = msg;
-      cur.specialistName = msg.specialistName;
-      cycles.push(cur as ReActCycle);
-      cur = { stepNumber: ++step };
-    } else if (msg.role === 'agent_retry') {
-      cycles.push({
-        id: msg.id || ('retry_' + step),
-        stepNumber: step,
-        retry: msg,
-      });
-      step++;
+      items.push({ key: msg.id, type: 'observation', message: msg });
+      continue;
+    }
+    if (msg.role === 'agent_decision') {
+      items.push({ key: msg.id, type: 'decision', message: msg });
+      continue;
+    }
+    if (msg.role === 'agent_retry') {
+      items.push({ key: msg.id, type: 'retry', message: msg });
     }
   }
-  if (cur.thought || cur.action || cur.decision) {
-    if (!cur.id) cur.id = 'cycle_' + step;
-    cycles.push(cur as ReActCycle);
-  }
-  return cycles;
+  return items;
 };
 
-const messageGroups = computed<MessageGroup[]>(() => {
-  const result: MessageGroup[] = [];
-  let traceBuffer: Message[] = [];
+const chatTurns = computed<ChatTurn[]>(() => {
+  const turns: ChatTurn[] = [];
+  let current: ChatTurn | null = null;
 
-  const flushBuffer = () => {
-    if (traceBuffer.length === 0) return;
-    const cycles = buildCycles(traceBuffer);
-    for (let i = 0; i < cycles.length; i++) {
-      cycles[i].isStreaming = agentStore.streaming && i === cycles.length - 1;
-      result.push({
-        key: cycles[i].id,
-        type: 'cycle',
+  const ensureTurn = () => {
+    if (!current) {
+      current = {
+        key: `turn_${turns.length + 1}`,
         messages: [],
-        preview: traceBuffer[0],
-        cycle: cycles[i],
-        hasMore: i < cycles.length - 1,
-        isLastCycle: i === cycles.length - 1,
-      });
+        items: [],
+        isActive: false,
+      };
+      turns.push(current);
     }
-    traceBuffer = [];
+    return current;
   };
 
   for (const msg of agentStore.messages) {
-    if (isTraceRole(msg.role)) {
-      traceBuffer.push(msg);
-    } else {
-      flushBuffer();
-      const last = result[result.length - 1];
-      if (last && last.type === 'normal') {
-        last.messages.push(msg);
-        last.preview = msg;
-        continue;
-      }
-      result.push({
+    if (msg.role === 'user') {
+      current = {
         key: msg.id,
-        type: 'normal',
-        messages: [msg],
-        preview: msg,
-      });
+        user: msg,
+        messages: [],
+        items: [],
+        isActive: false,
+      };
+      turns.push(current);
+      continue;
     }
-  }
-  flushBuffer();
 
-  return result;
+    const turn = ensureTurn();
+    turn.messages.push(msg);
+  }
+
+  if (agentStore.streaming) {
+    const turn = ensureTurn();
+    turn.isActive = true;
+  }
+
+  return turns.map((turn) => ({
+    ...turn,
+    items: buildTurnItems(turn.messages),
+  }));
 });
-
-const formatTime = (ts?: number) => {
-  if (!ts) return '';
-  const date = new Date(ts);
-  if (isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
-
-const getDuration = (cycle: ReActCycle) => {
-  if (!cycle.thought?.timestamp || !cycle.observation?.timestamp) return '';
-  const start = cycle.thought.timestamp;
-  const end = cycle.observation.timestamp;
-  if (!start || !end || end < start) return '';
-  const diff = (end - start) / 1000;
-  return `${diff.toFixed(1)}s`;
-};
-
-const cycleSummary = (cycle: ReActCycle) => {
-  if (cycle.observation?.role === 'agent_error') {
-    return `Failed${cycle.action?.toolName ? ` · ${cycle.action.toolName}` : ''}`;
-  }
-  const parts: string[] = [];
-  if (cycle.thought) parts.push('Thought');
-  if (cycle.action?.toolName) parts.push(cycle.action.toolName);
-  if (cycle.decision) parts.push('Decision');
-  if (cycle.retry) parts.push('Retrying provider');
-  if (cycle.observation) parts.push('Observed');
-  return parts.length > 0 ? parts.join(' · ') : 'Working';
-};
 
 const formatArgs = (args: string) => {
   try {
@@ -788,14 +653,13 @@ const handleEnter = (e: KeyboardEvent) => {
 
 const handleSend = () => {
   if (!input.value.trim()) return;
+  agentStore.analyzeWithQuery(effectiveRequestId.value, input.value, undefined, agentStore.streaming ? 'steer' : 'queue');
+  input.value = '';
+};
 
-  if (agentStore.streaming) {
-    agentStore.addToPendingQueue(effectiveRequestId.value, input.value);
-    input.value = '';
-    return;
-  }
-
-  agentStore.analyzeWithQuery(effectiveRequestId.value, input.value);
+const handleQueue = () => {
+  if (!input.value.trim()) return;
+  agentStore.analyzeWithQuery(effectiveRequestId.value, input.value, undefined, 'queue');
   input.value = '';
 };
 
@@ -1165,9 +1029,70 @@ const showContextModal = () => {
   font-size: 11px;
 }
 
+.user {
+  align-items: flex-end;
+}
+
+.user .role {
+  text-align: right;
+}
+
 .user .content {
+  max-width: 86%;
   background-color: #dde8f8;
   border-color: #b7cbe7;
+}
+
+.deliveryBadge {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border: 1px solid #c8c8c8;
+  border-radius: 999px;
+  color: #777;
+  background: #efefef;
+  font-size: 10px;
+}
+
+.assistant {
+  align-items: flex-start;
+}
+
+.agentTurn .content {
+  width: 100%;
+  background-color: #ededed;
+}
+
+.answerBlock {
+  color: #222;
+}
+
+.answerBlock + .answerBlock,
+.agentStepFlow + .answerBlock,
+.inlineThinking + .answerBlock,
+.answerBlock + .relatedTimeline,
+.answerBlock + .provenanceSection {
+  margin-top: 8px;
+}
+
+.agentStepFlow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.agentStep {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inlineThinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  color: #666;
 }
 
 /* Timeline - inline ReAct cycle steps */

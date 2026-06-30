@@ -20,6 +20,7 @@ export interface Message {
   content: string
   timestamp: number
   toolName?: string
+  toolCallId?: string
   arguments?: string
   requestIds?: string[]
   depth?: number
@@ -31,6 +32,8 @@ export interface Message {
   specialistName?: string
   retryAttempt?: number
   retryMax?: number
+  deliveryStatus?: 'queued' | 'submitted'
+  deliveryMode?: 'steer' | 'queue'
 }
 
 export interface PendingQuery {
@@ -48,6 +51,7 @@ interface SessionSnapshot {
   streaming: boolean
   analysisId: string | null
   currentContent: string
+  llmWaiting: boolean
   agentEvents: AgentEvent[]
   currentToolCalls: number
   currentDepth: number
@@ -63,6 +67,7 @@ export const useAgentStore = defineStore('agent', () => {
   const traceSequence = ref<number>(0)
   const streaming = ref<boolean>(false)
   const currentContent = ref<string>('')
+  const llmWaiting = ref<boolean>(false)
   const analysisId = ref<string | null>(null)
   const pendingQueue = ref<PendingQuery[]>([])
   const models = ref<AgentModel[]>([])
@@ -281,6 +286,7 @@ export const useAgentStore = defineStore('agent', () => {
     content: string, 
     options?: {
       toolName?: string
+      toolCallId?: string
       arguments?: string
       requestIds?: string[]
       depth?: number
@@ -292,20 +298,25 @@ export const useAgentStore = defineStore('agent', () => {
       specialistName?: string
       retryAttempt?: number
       retryMax?: number
+      deliveryStatus?: 'queued' | 'submitted'
+      deliveryMode?: 'steer' | 'queue'
     }
   ) => {
-    messages.value.push({
+    const message: Message = {
       id: nextMessageId('msg'),
       role,
       content,
       timestamp: Date.now(),
       ...options
-    })
+    }
+    messages.value.push(message)
+    return message
   }
 
   const startStreaming = (id: string, userMessage: string) => {
     streaming.value = true
     currentContent.value = ''
+    llmWaiting.value = false
     analysisId.value = id
     agentEvents.value = []
     traceExpanded.value = false
@@ -319,6 +330,7 @@ export const useAgentStore = defineStore('agent', () => {
   }
 
   const appendContent = (content: string) => {
+    llmWaiting.value = false
     currentContent.value += content
   }
 
@@ -327,6 +339,7 @@ export const useAgentStore = defineStore('agent', () => {
       addMessage('assistant', currentContent.value)
     }
     streaming.value = false
+    llmWaiting.value = false
     if (agentTraceChain.value.length > 0) {
       traceExpanded.value = false
     }
@@ -349,6 +362,7 @@ export const useAgentStore = defineStore('agent', () => {
     messageSequence.value = 0
     traceSequence.value = 0
     currentContent.value = ''
+    llmWaiting.value = false
     agentEvents.value = []
     traceExpanded.value = false
     currentToolCalls.value = 0
@@ -393,6 +407,13 @@ export const useAgentStore = defineStore('agent', () => {
     finishStreaming()
   }
 
+  const flushCurrentContentAsAssistant = () => {
+    const text = currentContent.value.trim()
+    if (!text) return
+    addMessage('assistant', currentContent.value)
+    currentContent.value = ''
+  }
+
   const addAgentEvent = (event: AgentEvent) => {
     agentEvents.value.push(event)
     currentToolCalls.value = event.tool_calls ?? 0
@@ -402,7 +423,22 @@ export const useAgentStore = defineStore('agent', () => {
       event.request_ids.forEach(id => relatedRequestIds.value.add(id))
     }
 
+    if (event.type === 'thinking') {
+      llmWaiting.value = true
+    } else if (event.type !== 'provider_retry') {
+      llmWaiting.value = false
+    }
+
     switch (event.type) {
+      case 'thinking':
+        break
+
+      case 'intervention_applied': {
+        const target = messages.value.find((msg) => msg.id === event.intervention_id)
+        if (target) target.deliveryStatus = 'submitted'
+        break
+      }
+
       case 'start':
         addMessage('agent_thought', event.content || 'Starting analysis...', {
           depth: event.depth,
@@ -412,6 +448,7 @@ export const useAgentStore = defineStore('agent', () => {
       
       case 'thought':
         if (event.content) {
+          flushCurrentContentAsAssistant()
           const last = messages.value[messages.value.length - 1]
           if (last && last.role === 'agent_thought') {
             last.content += event.content
@@ -425,6 +462,7 @@ export const useAgentStore = defineStore('agent', () => {
         break
       
       case 'decision':
+        flushCurrentContentAsAssistant()
         if (event.content) {
           addMessage('agent_decision', event.content, {
             depth: event.depth,
@@ -434,8 +472,10 @@ export const useAgentStore = defineStore('agent', () => {
         break
       
       case 'action':
+        flushCurrentContentAsAssistant()
         addMessage('agent_action', `Calling tool: ${event.tool_name}`, {
           toolName: event.tool_name,
+          toolCallId: event.tool_call_id,
           arguments: event.arguments,
           depth: event.depth,
           specialistName: event.specialist_name,
@@ -443,12 +483,14 @@ export const useAgentStore = defineStore('agent', () => {
         break
       
       case 'observation': {
+        flushCurrentContentAsAssistant()
         const isErrorObservation = !!event.error_category || !!event.error_tool_name || !!event.error_timeout || !!event.error_recovered
         const preview = event.content
           ? (event.content.length > 200 ? event.content.substring(0, 200) + '...' : event.content)
           : 'No result preview'
         addMessage(isErrorObservation ? 'agent_error' : 'agent_observation', preview, {
           toolName: event.tool_name,
+          toolCallId: event.tool_call_id,
           requestIds: event.request_ids,
           depth: event.depth,
           errorCategory: event.error_category,
@@ -501,6 +543,7 @@ export const useAgentStore = defineStore('agent', () => {
       streaming: streaming.value,
       analysisId: analysisId.value,
       currentContent: currentContent.value,
+      llmWaiting: llmWaiting.value,
       agentEvents: [...agentEvents.value],
       currentToolCalls: currentToolCalls.value,
       currentDepth: currentDepth.value,
@@ -522,6 +565,7 @@ export const useAgentStore = defineStore('agent', () => {
       streaming.value = snapshot.streaming
       analysisId.value = snapshot.analysisId
       currentContent.value = snapshot.currentContent
+      llmWaiting.value = snapshot.llmWaiting
       agentEvents.value = [...snapshot.agentEvents]
       currentToolCalls.value = snapshot.currentToolCalls
       currentDepth.value = snapshot.currentDepth
@@ -538,6 +582,7 @@ export const useAgentStore = defineStore('agent', () => {
       streaming.value = false
       analysisId.value = null
       currentContent.value = ''
+      llmWaiting.value = false
       agentEvents.value = []
       currentToolCalls.value = 0
       currentDepth.value = 0
@@ -567,6 +612,7 @@ export const useAgentStore = defineStore('agent', () => {
         streaming.value = false
         analysisId.value = null
         currentContent.value = ''
+        llmWaiting.value = false
         agentEvents.value = []
         currentToolCalls.value = 0
         currentDepth.value = 0
@@ -713,16 +759,41 @@ export const useAgentStore = defineStore('agent', () => {
     }
   }
 
-  const analyzeWithQuery = async (requestId: string | undefined, query: string, sessionId?: string) => {
-    if (streaming.value) return
-
+  const analyzeWithQuery = async (requestId: string | undefined, query: string, sessionId?: string, mode: 'steer' | 'queue' | 'abort' = 'steer') => {
     const resolvedSessionId = sessionId || ensureChatSessionId()
+    if (streaming.value) {
+      if (mode === 'queue') {
+        addToPendingQueue(requestId, query, resolvedSessionId)
+        return
+      }
+      if (mode === 'abort') {
+        await stopAnalysis()
+      } else if (analysisId.value) {
+        const steerMessage = addMessage('user', query, { deliveryStatus: 'queued', deliveryMode: 'steer' })
+        lastUserQuery.value = query
+        const response = await agentApi.sendIntervention({
+          analysis_id: analysisId.value,
+          session_id: resolvedSessionId,
+          message_id: steerMessage.id,
+          message: query,
+          mode: 'steer',
+        })
+        if (response.code !== 0) {
+          addToPendingQueue(requestId, query, resolvedSessionId)
+        }
+        saveCurrentSnapshot()
+        return
+      }
+    }
+
+    const resolvedSessionIdForRun = resolvedSessionId
     lastUserQuery.value = query
 
     addMessage('user', query)
 
     streaming.value = true
     currentContent.value = ''
+    llmWaiting.value = false
     analysisId.value = `query_${Date.now()}`
     agentEvents.value = []
     traceExpanded.value = false
@@ -740,7 +811,7 @@ export const useAgentStore = defineStore('agent', () => {
       target_value: query,
       query: query,
       model_id: selectedModelId.value || undefined,
-      session_id: resolvedSessionId,
+      session_id: resolvedSessionIdForRun,
     }
 
     try {
@@ -758,6 +829,7 @@ export const useAgentStore = defineStore('agent', () => {
     messages,
     streaming,
     currentContent,
+    llmWaiting,
     analysisId,
     models,
     selectedModelId,

@@ -64,6 +64,7 @@ export function useWailsEvents() {
           type: eventData.type,
           content: eventContent,
           tool_name: eventData.tool_name || '',
+          tool_call_id: eventData.tool_call_id || '',
           arguments: eventData.arguments || '',
           result: eventData.result || '',
           request_ids: eventData.request_ids || [],
@@ -76,6 +77,7 @@ export function useWailsEvents() {
           error_recovered: eventData.error_recovered || false,
           retry_attempt: eventData.retry_attempt || 0,
           retry_max: eventData.retry_max || 0,
+          intervention_id: eventData.intervention_id || '',
         }
         agentStore.addAgentEvent(agentEvent)
       })

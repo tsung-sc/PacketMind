@@ -72,21 +72,11 @@
       </div>
     </header>
     
+    <div :class="$style.sessionTopBar">
+      <SessionList orientation="horizontal" @sessionChange="handleSessionChange" />
+    </div>
+
     <div :class="$style.mainLayout">
-      <!-- Far Left Panel: Session List -->
-      <div 
-        :class="$style.sessionPanel"
-        :style="{ width: sessionWidth + 'px' }"
-      >
-        <SessionList @sessionChange="handleSessionChange" />
-      </div>
-      
-      <!-- Resize Handle 1 (Session) -->
-      <div 
-        :class="$style.resizeHandle"
-        @mousedown="startResize('session', $event)"
-      />
-      
       <!-- Left Panel: Request List -->
       <div 
         :class="$style.leftPanel"
@@ -396,18 +386,14 @@ const MIN_LEFT_WIDTH = 200;
 const MAX_LEFT_WIDTH = 600;
 const MIN_RIGHT_WIDTH = 300;
 const MAX_RIGHT_WIDTH = 600;
-const MIN_SESSION_WIDTH = 140;
-const MAX_SESSION_WIDTH = 280;
 
 const leftWidth = ref(400);
 const rightWidth = ref(400);
-const sessionWidth = ref(180);
 
 // Load saved widths from localStorage
 onMounted(() => {
   const savedLeft = localStorage.getItem('panel_left_width');
   const savedRight = localStorage.getItem('panel_right_width');
-  const savedSession = localStorage.getItem('panel_session_width');
   
   if (savedLeft) {
     const width = parseInt(savedLeft, 10);
@@ -420,13 +406,6 @@ onMounted(() => {
     const width = parseInt(savedRight, 10);
     if (width >= MIN_RIGHT_WIDTH && width <= MAX_RIGHT_WIDTH) {
       rightWidth.value = width;
-    }
-  }
-
-  if (savedSession) {
-    const width = parseInt(savedSession, 10);
-    if (width >= MIN_SESSION_WIDTH && width <= MAX_SESSION_WIDTH) {
-      sessionWidth.value = width;
     }
   }
   
@@ -443,7 +422,7 @@ onMounted(() => {
 });
 
 // Resize logic
-type ResizeType = 'left' | 'right' | 'session';
+type ResizeType = 'left' | 'right';
 let currentResize: ResizeType | null = null;
 let startX = 0;
 let startWidth = 0;
@@ -451,7 +430,7 @@ let startWidth = 0;
 const startResize = (type: ResizeType, event: MouseEvent) => {
   currentResize = type;
   startX = event.clientX;
-  startWidth = type === 'left' ? leftWidth.value : type === 'right' ? rightWidth.value : sessionWidth.value;
+  startWidth = type === 'left' ? leftWidth.value : rightWidth.value;
   
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseup', stopResize);
@@ -472,10 +451,6 @@ const onMouseMove = (event: MouseEvent) => {
     // Right panel: dragging left increases width
     const newWidth = startWidth - deltaX;
     rightWidth.value = Math.min(MAX_RIGHT_WIDTH, Math.max(MIN_RIGHT_WIDTH, newWidth));
-  } else {
-    // Session panel (leftmost): dragging right increases width
-    const newWidth = startWidth + deltaX;
-    sessionWidth.value = Math.min(MAX_SESSION_WIDTH, Math.max(MIN_SESSION_WIDTH, newWidth));
   }
 };
 
@@ -484,8 +459,6 @@ const stopResize = () => {
     localStorage.setItem('panel_left_width', leftWidth.value.toString());
   } else if (currentResize === 'right') {
     localStorage.setItem('panel_right_width', rightWidth.value.toString());
-  } else if (currentResize === 'session') {
-    localStorage.setItem('panel_session_width', sessionWidth.value.toString());
   }
   
   currentResize = null;
@@ -1392,6 +1365,14 @@ const handleMenuAction = async (action: string) => {
     linear-gradient(135deg, transparent 0 76%, rgba(100, 100, 100, 0.6) 76% 80%, transparent 80%);
 }
 
+.sessionTopBar {
+  flex-shrink: 0;
+  height: 44px;
+  background: #e8e8e8;
+  border-bottom: 1px solid #ababab;
+  overflow: hidden;
+}
+
 .mainLayout {
   display: flex;
   flex: 1;
@@ -1413,7 +1394,7 @@ const handleMenuAction = async (action: string) => {
   flex-shrink: 0;
 }
 
-.leftPanel, .sessionPanel, .rightPanel {
+.leftPanel, .rightPanel {
   flex-shrink: 0;
   height: 100%;
   overflow: hidden;

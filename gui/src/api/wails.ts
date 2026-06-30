@@ -183,6 +183,20 @@ export const agentApi = {
     return normalizeResponse<void>(await CancelAnalysis(analysisId))
   },
 
+  sendIntervention: async (data: { analysis_id: string; session_id?: string; message_id?: string; message: string; mode: 'steer' | 'queue' | 'abort' }): Promise<ApiResponse<void>> => {
+    const w: any = window as any
+    if (w?.go?.bindings?.AgentAPI?.SendIntervention) {
+      return normalizeResponse<void>(await w.go.bindings.AgentAPI.SendIntervention({
+        analysis_id: data.analysis_id,
+        session_id: data.session_id || '',
+        message_id: data.message_id || '',
+        message: data.message,
+        mode: data.mode,
+      }))
+    }
+    return { code: 50001, message: 'SendIntervention is not exposed by current Wails bindings' }
+  },
+
   listModels: async (): Promise<ApiResponse<ModelListResponse>> => {
     return normalizeResponse<ModelListResponse>(await ListModels())
   },
