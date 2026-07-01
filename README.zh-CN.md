@@ -6,7 +6,7 @@
 
 [![Version](https://img.shields.io/badge/version-v1.0.13-blue.svg)](https://github.com/packetmind/packetmind/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/packetmind/packetmind/blob/main/LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev/)
+[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://go.dev/)
 [![Wails](https://img.shields.io/badge/Wails-v2-2D8CFF)](https://wails.io/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 [![Build](https://img.shields.io/github/actions/workflow/status/packetmind/packetmind/wails-build.yml?branch=main)](https://github.com/packetmind/packetmind/actions)
@@ -18,14 +18,6 @@
 [English](./README.md) · [中文](./README.zh-CN.md)
 
 <br/>
-
-<!--
-  📸 TODO: 替换为实际截图
-  建议：1280x720 PNG，暗色主题，展示主界面和 AI 面板
-  <img src="docs/screenshot-main.png" width="90%" alt="PacketMind 主界面" />
--->
-
-**[ 🖼️ 截图：主界面 — 四栏布局，包含会话列表、请求树、详情视图、AI 面板 ]**
 
 </div>
 
@@ -45,7 +37,7 @@
 | 桌面 GUI | ✅ | ✅ | ✅ | ❌ | ✅ |
 | **AI 请求分析** | **✅** | ❌ | ❌ | ❌ | ❌ |
 | **值溯源追踪** | **✅** | ❌ | ❌ | ❌ | ❌ |
-| **多 Agent 协作** | **✅** | ❌ | ❌ | ❌ | ❌ |
+| **假设驱动分析** | **✅** | ❌ | ❌ | ❌ | ❌ |
 | **MCP 工具集成** | **✅** | ❌ | ❌ | ❌ | ❌ |
 | 开源 | ✅ | ❌ | ❌ | ✅ | ❌ |
 | 免费 | ✅ | ❌ | ⚠️ | ✅ | ⚠️ |
@@ -67,22 +59,23 @@
 
 ### 🤖 AI Agent 分析
 
-- **ReAct Agent** — 多步推理循环，内置 8 个调查工具
-- **4 个专家 Agent** — Header、Body、Security 和 General 专家，各有专属工具白名单
-- **多专家交接** — Agent 之间协作：header 专家发现 token → 移交给 security 专家进行认证分析
+- **ReAct Agent** — 多步推理循环，内置 12 个调查工具
+- **认知工具** — 会话总览 (`summarize_session`)、请求分类 (`classify_requests`)、流程序列追踪 (`trace_flow_sequence`)
+- **假设验证** — 对签名算法、token 编码、字段生成规则提出并验证假设
 - **值溯源追踪** — 问一句 *"这个 auth token 从哪来的？"*，Agent 会自动在你的整个抓包会话中追踪溯源
 - **流式分析** — 实时观看 Agent 的思考、行动和观察过程
+- **运行中追加提问** — Agent 正在分析时仍可发送 follow-up 消息，在下一安全点自动注入当前分析上下文
 - **多 Provider 支持** — 兼容 OpenAI、智谱 GLM-4 及任何 OpenAI 兼容接口
-- **动态模型发现** — 直接在 UI 中从 Provider API 获取可用模型列表
+- **按渠道管理模型** — 每个 LLM 渠道独立管理自己的模型列表
 - **MCP 集成** — 通过 [Model Context Protocol](https://modelcontextprotocol.io/) 服务器扩展 Agent 工具集
 - **会话记忆** — 对话上下文在追问之间保持连续
 
 ### 🖥️ 桌面体验
 
 - **Charles 风格请求树** — 按 Host 分组，按路径段折叠，带协议图标（HTTP/HTTPS/WebSocket/SOCKS）
+- **Sessions 顶部栏** — 横向 Session 标签栏，像 Charles 一样切换
 - **多标签请求详情** — Overview、Contents、Summary、SSL 和 WebSocket 视图
 - **智能内容视图** — JSON Tree、HTML 预览、图片预览、Hex、Raw — 根据内容类型自动选择
-- **右键 AI 分析** — 选中任意 header、cookie 或字段 → "向 AI 提问"
 - **无边框窗口** — 自定义标题栏，支持 macOS 原生红绿灯按钮
 - **应用菜单** — 完整的桌面菜单栏，支持子菜单（最近打开、聚焦 Host、代理设置）
 - **实时高亮** — 新请求在树中短暂闪烁以吸引注意
@@ -102,45 +95,41 @@
 
 ## 🤖 AI Agent — 工作原理
 
-<!--
-  📸 TODO: 添加 ReAct 循环流程图
-  建议：SVG 展示 Route → Think → Act → Observe → Handoff → Conclude
--->
-
 PacketMind 的 Agent 使用 **ReAct（Reason + Act）** 循环来分析你的流量：
 
 ```
-1. ROUTE   → 选择最合适的专家 Agent（header / body / security / general）
-2. THINK   → LLM 推理问题与可用数据
-3. ACT     → 调用调查工具（搜索、追踪、查找关联请求）
-4. OBSERVE → 处理工具返回结果
-5. HANDOFF → 若其他专家更适合，携带上下文进行委托
-6. CONCLUDE → 返回结论及完整溯源链
+1. 总览    → 先了解 session 的整体结构和流量分布
+2. 分类    → 识别关键节点（登录、token 下发、签名请求）
+3. 流程    → 追踪请求间的时序依赖和字段流转关系
+4. 深入    → 对关键请求进行详细检查和对比分析
+5. 验证    → 对发现的模式提出假设并自动验证
+6. 报告    → 返回结论及完整溯源链
 ```
 
 ### 内置调查工具
 
 | 工具 | 功能 |
 |------|------|
+| `summarize_session` | Session 总览 — hosts、端点、认证检测 |
+| `classify_requests` | 自动分类请求角色（认证入口、签名、token、数据查询、静态资源） |
+| `trace_flow_sequence` | 时序流程追踪，自动检测 cookie/token/value 流转关系 |
 | `get_request` | 按 ID 获取完整请求详情 |
-| `search_requests_by_host` | 查找特定 Host 的所有请求 |
+| `search_all_fields` | 跨所有字段全量搜索 |
 | `search_requests_by_header` | 按请求头名称/值搜索请求 |
 | `search_requests_by_body` | 搜索请求体中包含指定内容的请求 |
 | `search_requests_by_response` | 搜索响应体中包含指定值的请求 |
 | `find_prior_response_sources` | 向前追溯：某个值首次出现在哪里？ |
 | `find_later_request_usages` | 向后追踪：某个值在哪里被复用？ |
 | `trace_value_flow` | 端到端值溯源追踪，带置信度评分 |
+| `test_hypothesis` | 对签名/编码假设进行实际数据验证 |
+| `diff_requests` | 逐字段比较两个请求的差异 |
+| `analyze_encoding` | 检测并解码嵌套编码层 |
+| `batch_execute` | 并发执行多个工具调用 |
+| `bash` | 在沙箱工作区执行 Shell 命令 |
 
-### 多专家协作
+### 运行中追加提问
 
-编排器根据关键词将问题路由到对应的专家：
-
-- **Header 专家** → Cookie、Set-Cookie、Content-Type、Authorization 头
-- **Body 专家** → JSON、XML、表单数据、载荷分析
-- **Security 专家** → 认证 token、会话 ID、可疑模式
-- **General 专家** → 广域回退，拥有完整工具权限
-
-当某个专家发现超出自身领域的内容时，可以**交接**给另一个专家——最多 3 跳，带循环防护。完整协作链路在 UI 中可见。
+Agent 正在分析时，你可以发送 follow-up 消息。它们会进入待处理队列，在下一安全点自动注入 Agent 的上下文——Agent 读取你的新指令后调整分析方向，无需完全重启。这类似于 IDE Agent 和主流聊天工具处理用户中断的方式。
 
 ### MCP 可扩展性
 
@@ -172,15 +161,15 @@ wails dev
 
 ### 配置 AI Provider
 
-1. 打开 PacketMind → 设置 → AI 模型配置
-2. 选择 Provider（OpenAI、智谱 GLM-4 或自定义接口）
-3. 输入 API Key
-4. 点击"初始化模型"发现可用模型
-5. 选择你的首选模型，开始分析
+1. 打开 PacketMind → 设置 → 模型配置
+2. 新增一个渠道/Provider（OpenAI 兼容接口）
+3. 输入 API Key 和 Base URL
+4. 手动添加模型到该渠道
+5. 在 AI 面板中选择你的首选模型，开始分析
 
 ### 配置浏览器
 
-将浏览器/系统代理设置为 `localhost:8080`（默认端口）。HTTPS 流量将通过 PacketMind 自动生成的 CA 证书进行解密。
+将浏览器/系统代理设置为 `localhost:8888`（默认端口）。HTTPS 流量将通过 PacketMind 自动生成的 CA 证书进行解密。
 
 > 💡 **首次运行？** PacketMind 会提示你安装 CA 证书以支持 HTTPS MITM。
 
@@ -190,12 +179,12 @@ wails dev
 
 | 层级 | 技术 |
 |------|------|
-| **后端** | Go 1.25 |
+| **后端** | Go |
 | **桌面框架** | [Wails v2](https://wails.io/) |
 | **前端** | Vue 3 · TypeScript · Pinia · Ant Design Vue |
-| **AI 引擎** | ReAct Agent · 多专家协作 · MCP |
+| **AI 引擎** | ReAct Agent · 认知工具 · MCP |
 | **AI Provider** | OpenAI · 智谱 GLM-4 · OpenAI 兼容接口 |
-| **存储** | 内存（多索引，支持导入/导出） |
+| **存储** | 内存（go-memdb，多索引，支持导入/导出） |
 | **代理** | HTTP · HTTPS (MITM) · SOCKS5 · WebSocket |
 | **CI/CD** | GitHub Actions (Windows · macOS · Linux) |
 
@@ -207,13 +196,13 @@ wails dev
 packetmind/
 ├── app.go                  # Wails 应用入口
 ├── internal/
-│   ├── agent/              # Agent、专家、记忆、MCP、工具
+│   ├── agent/              # Agent、runtime、llmtypes/llmcore、provider、MCP、tools
 │   ├── api/bindings/       # Wails 前端绑定
 │   ├── config/             # 配置与持久化
 │   ├── proxy/              # 代理核心 (HTTP/HTTPS/SOCKS5/MITM)
-│   └── storage/            # 多索引内存数据库
+│   └── storage/            # 内存存储 (go-memdb)
 ├── gui/                    # Vue 3 前端 (src/components, stores, api)
-├── configs/                # config.yaml · models.json · desktop.json
+├── configs/                # packetmind.json · models.json
 ├── build/                  # 应用图标与构建资源
 └── docs/                   # 设计与模块文档
 ```
@@ -243,52 +232,28 @@ make fmt
 
 ---
 
-## 📸 截图
-
-<!--
-  📸 TODO: 替换所有占位符为实际截图
-  建议规格：
-  - PNG 格式，1280x720 或 1920x1080
-  - 优先使用暗色主题
-  - 展示真实流量数据，而非占位数据
-  - 需脱敏处理真实 API Key 或敏感数据
--->
-
-| 主界面 |
-|---|
-| **[ 🖼️ 截图：四栏主界面布局 — 会话列表、请求树、请求详情、AI 面板 ]** |
-
-| AI Agent 分析 | 专家交接协作 |
-|---|---|
-| **[ 🖼️ AI 分析请求过程，可见 Think/Act/Observe 步骤 ]** | **[ 🖼️ 多专家协作，显示完整交接链路 ]** |
-
-| 请求详情 | SSL 详情 |
-|---|---|
-| **[ 🖼️ 多标签请求视图，含 JSON Tree / Headers / Timing ]** | **[ 🖼️ TLS 证书链、密码套件、ALPN 信息 ]** |
-
----
-
 ## 🗺️ 路线图
 
 ### 已完成 ✅
 - [x] HTTP/HTTPS/SOCKS5 代理与 MITM
-- [x] AI ReAct Agent 及 8 个调查工具
-- [x] 多专家协作与交接机制
+- [x] AI ReAct Agent 及 12 个调查工具
+- [x] 认知工具（总览、分类、流程追踪、假设验证）
+- [x] 运行中追加提问（follow-up steering）
+- [x] 假设驱动的签名/编码分析
 - [x] MCP 工具集成
 - [x] WebSocket 抓包与检查
 - [x] Charles 风格请求树（按 Host 分组）
 - [x] SSL/TLS 详情视图
 - [x] 完整时序分解
 - [x] HAR/cURL 导出与请求重放
-- [x] AI 模型动态发现
 - [x] 内容解码（gzip/deflate/brotli + 字符集）
+- [x] 按渠道管理模型
 
 ### 近期计划 🔜
 - [ ] 交互式请求/响应断点
 - [ ] Map Remote / Map Local（URL 重写）
 - [ ] DNS 欺骗与镜像
 - [ ] gRPC / Protobuf 解码
-- [ ] 请求对比与差异分析
 - [ ] 会话自动保存到磁盘
 - [ ] 可脚本化的 Mock 服务器
 
