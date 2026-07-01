@@ -6,7 +6,7 @@
 
 [![Version](https://img.shields.io/badge/version-v1.0.13-blue.svg)](https://github.com/packetmind/packetmind/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/packetmind/packetmind/blob/main/LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev/)
+[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://go.dev/)
 [![Wails](https://img.shields.io/badge/Wails-v2-2D8CFF)](https://wails.io/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 [![Build](https://img.shields.io/github/actions/workflow/status/packetmind/packetmind/wails-build.yml?branch=main)](https://github.com/packetmind/packetmind/actions)
@@ -18,14 +18,6 @@
 [English](./README.md) · [中文](./README.zh-CN.md)
 
 <br/>
-
-<!--
-  📸 TODO: Replace placeholder with actual screenshot
-  Recommended: 1280x720 PNG, dark theme, showing main UI with AI panel open
-  <img src="docs/screenshot-main.png" width="90%" alt="PacketMind main interface" />
--->
-
-**[ 🖼️ Screenshot: Main Interface — 4-panel layout with session list, request tree, detail view, and AI panel ]**
 
 </div>
 
@@ -45,7 +37,7 @@ You've used Charles Proxy, Fiddler, or mitmproxy. They capture traffic. But when
 | Desktop GUI | ✅ | ✅ | ✅ | ❌ | ✅ |
 | **AI Request Analysis** | **✅** | ❌ | ❌ | ❌ | ❌ |
 | **Provenance Tracing** | **✅** | ❌ | ❌ | ❌ | ❌ |
-| **Multi-Agent Orchestration** | **✅** | ❌ | ❌ | ❌ | ❌ |
+| **Hypothesis-Driven Analysis** | **✅** | ❌ | ❌ | ❌ | ❌ |
 | **MCP Tool Integration** | **✅** | ❌ | ❌ | ❌ | ❌ |
 | Open Source | ✅ | ❌ | ❌ | ✅ | ❌ |
 | Free | ✅ | ❌ | ⚠️ | ✅ | ⚠️ |
@@ -67,22 +59,23 @@ You've used Charles Proxy, Fiddler, or mitmproxy. They capture traffic. But when
 
 ### 🤖 AI Agent Analysis
 
-- **ReAct Agent** — Multi-step reasoning loop with 8 built-in investigation tools
-- **4 Specialist Agents** — Header, Body, Security, and General experts with custom tool whitelists
-- **Multi-Specialist Handoff** — Agents collaborate: header specialist detects a token → hands off to security specialist for auth analysis
+- **ReAct Agent** — Multi-step reasoning loop with 12 built-in investigation tools
+- **Cognitive Tools** — Session overview (`summarize_session`), request classification (`classify_requests`), flow sequence tracing (`trace_flow_sequence`)
+- **Hypothesis Testing** — Formulate and verify guesses about signature algorithms, token encoding, and field generation rules
 - **Provenance Tracing** — Ask *"Where did this auth token come from?"* and the Agent traces it across your entire captured session
 - **Streaming Analysis** — Watch the Agent think, act, and observe in real time
+- **Follow-up Steering** — Send follow-up messages while the Agent is working; they're applied at the next safe step without disrupting the current analysis
 - **Multi-Provider Support** — Works with OpenAI, Zhipu GLM-4, and any OpenAI-compatible endpoint
-- **Dynamic Model Discovery** — Fetch available models from your provider's API directly in the UI
+- **Per-Provider Model Management** — Each LLM channel manages its own model list independently
 - **MCP Integration** — Extend the Agent's toolset via [Model Context Protocol](https://modelcontextprotocol.io/) servers
 - **Session Memory** — Conversations maintain context across follow-up questions
 
 ### 🖥️ Desktop Experience
 
 - **Charles-Style Request Tree** — Grouped by host, collapsible by path segments, with protocol icons (HTTP/HTTPS/WebSocket/SOCKS)
+- **Sessions Bar** — Horizontal session tabs at the top, like Charles
 - **Multi-Tab Request Detail** — Overview, Contents, Summary, SSL, and WebSocket views
 - **Smart Content Views** — JSON Tree, HTML Preview, Image Preview, Hex, Raw — based on content type
-- **Right-Click AI Analysis** — Select any header, cookie, or field → "Ask AI about this"
 - **Frameless Window** — Custom title bar with native macOS traffic light support
 - **Application Menu** — Full desktop menu bar with submenus (Recent, Focused Hosts, Proxy Settings)
 - **Real-Time Highlighting** — New requests flash briefly in the tree to draw attention
@@ -102,45 +95,41 @@ You've used Charles Proxy, Fiddler, or mitmproxy. They capture traffic. But when
 
 ## 🤖 AI Agent — How It Works
 
-<!--
-  📸 TODO: Add a diagram showing the ReAct loop
-  Recommended: ASCII flow diagram or SVG showing Route → Think → Act → Observe → Handoff → Conclude
--->
-
 PacketMind's Agent uses a **ReAct (Reason + Act)** loop to investigate your traffic:
 
 ```
-1. ROUTE    → Select the best specialist agent (header / body / security / general)
-2. THINK    → LLM reasons about the question and available data
-3. ACT      → Call investigation tools (search, trace, find related requests)
-4. OBSERVE  → Process tool results
-5. HANDOFF  → If another specialist is better suited, delegate with context
-6. CONCLUDE → Return findings with full provenance chain
+1. ORIENT   → Summarize the session to understand the landscape
+2. CLASSIFY → Identify key nodes (auth, tokens, signed requests)
+3. FLOW     → Trace chronological dependencies between requests
+4. DEEP DIVE → Inspect individual requests with search and comparison tools
+5. TEST     → Formulate and verify hypotheses about patterns
+6. REPORT   → Return findings with full provenance chain
 ```
 
 ### Built-in Investigation Tools
 
 | Tool | What It Does |
 |------|-------------|
+| `summarize_session` | High-level session overview — hosts, endpoints, auth detection |
+| `classify_requests` | Auto-classify requests into roles (auth, signed, token, data, static) |
+| `trace_flow_sequence` | Chronological flow with cookie/token/value edge detection |
 | `get_request` | Fetch full request details by ID |
-| `search_requests_by_host` | Find all requests to a specific host |
+| `search_all_fields` | Search across ALL request fields simultaneously |
 | `search_requests_by_header` | Find requests matching a header name/value |
 | `search_requests_by_body` | Find requests containing a body fragment |
 | `search_requests_by_response` | Find requests whose response contains a value |
 | `find_prior_response_sources` | Trace backward: where did a value first appear? |
 | `find_later_request_usages` | Trace forward: where is a value reused? |
 | `trace_value_flow` | End-to-end provenance tracing with confidence scoring |
+| `test_hypothesis` | Test signature/encoding hypotheses against actual data |
+| `diff_requests` | Field-by-field comparison of two requests |
+| `analyze_encoding` | Detect and decode nested encoding layers |
+| `batch_execute` | Execute multiple tool calls in parallel |
+| `bash` | Execute shell commands in a sandboxed workspace |
 
-### Multi-Specialist Collaboration
+### Follow-up Steering
 
-The Orchestrator routes questions to the right specialist based on keywords:
-
-- **Header Specialist** → Cookies, Set-Cookie, Content-Type, Authorization headers
-- **Body Specialist** → JSON, XML, form data, payload analysis
-- **Security Specialist** → Auth tokens, session IDs, suspicious patterns
-- **General Specialist** → Broad fallback, full tool access
-
-When a specialist detects something outside its domain, it can **hand off** to another specialist — up to 3 hops deep, with loop prevention. The full chain is shown in the UI.
+While the Agent is running, you can send follow-up messages. They enter a pending queue and are applied at the next safe step — the Agent reads your instruction and adjusts its analysis without a full restart. This is similar to how real-time IDE agents and chat tools handle user intervention during active runs.
 
 ### MCP Extensibility
 
@@ -172,11 +161,11 @@ wails dev
 
 ### Configure AI Provider
 
-1. Open PacketMind → Settings → AI Model Configuration
-2. Select a provider (OpenAI, Zhipu GLM-4, or custom endpoint)
-3. Enter your API key
-4. Click "Initialize Models" to discover available models
-5. Select your preferred model and start analyzing
+1. Open PacketMind → Settings → Model Configuration
+2. Add a channel/provider (OpenAI-compatible endpoint)
+3. Enter your API key and base URL
+4. Manually add models to the channel
+5. Select your preferred model in the AI panel and start analyzing
 
 ### Configure Your Browser
 
@@ -190,12 +179,12 @@ Set your browser/system proxy to `localhost:8888` (default port). HTTPS traffic 
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | Go 1.25 |
+| **Backend** | Go |
 | **Desktop Framework** | [Wails v2](https://wails.io/) |
 | **Frontend** | Vue 3 · TypeScript · Pinia · Ant Design Vue |
-| **AI Engine** | ReAct Agent · Multi-Specialist Orchestration · MCP |
+| **AI Engine** | ReAct Agent · Cognitive Tools · MCP |
 | **AI Providers** | OpenAI · Zhipu GLM-4 · OpenAI-compatible endpoints |
-| **Storage** | In-Memory (multi-indexed, import/export) |
+| **Storage** | In-Memory (go-memdb, multi-indexed, import/export) |
 | **Proxy** | HTTP · HTTPS (MITM) · SOCKS5 · WebSocket |
 | **CI/CD** | GitHub Actions (Windows · macOS · Linux) |
 
@@ -207,13 +196,13 @@ Set your browser/system proxy to `localhost:8888` (default port). HTTPS traffic 
 packetmind/
 ├── app.go                  # Wails application entry point
 ├── internal/
-│   ├── agent/              # Agent facade, llmcore, provider, specialists, memory, MCP, tools
+│   ├── agent/              # Agent facade, runtime, llmtypes/llmcore, provider, MCP, tools
 │   ├── api/bindings/       # Wails frontend bindings
 │   ├── config/             # Configuration & persistence
 │   ├── proxy/              # Proxy core (HTTP/HTTPS/SOCKS5/MITM)
-│   └── storage/            # In-memory storage with multi-index
+│   └── storage/            # In-memory storage (go-memdb)
 ├── gui/                    # Vue 3 frontend (src/components, stores, api)
-├── configs/                # packetmind.json · models.json · specialists.json
+├── configs/                # packetmind.json · models.json
 ├── build/                  # App icons & build resources
 └── docs/                   # Design & module documentation
 ```
@@ -243,52 +232,28 @@ See [AGENTS.md](./AGENTS.md) for detailed coding conventions and architecture de
 
 ---
 
-## 📸 Screenshots
-
-<!--
-  📸 TODO: Replace all placeholders with actual screenshots
-  Recommended specs:
-  - PNG format, 1280x720 or 1920x1080
-  - Dark theme preferred
-  - Show realistic traffic, not placeholder data
-  - Redact any real API keys or sensitive data
--->
-
-| Main Interface |
-|---|
-| **[ 🖼️ Screenshot: Main 4-panel layout — Session List, Request Tree, Request Detail, AI Panel ]** |
-
-| AI Agent Analysis | Specialist Handoff |
-|---|---|
-| **[ 🖼️ AI analyzing a request with visible Think/Act/Observe steps ]** | **[ 🖼️ Multi-specialist collaboration with handoff chain ]** |
-
-| Request Detail | SSL Details |
-|---|---|
-| **[ 🖼️ Multi-tab request view with JSON Tree / Headers / Timing ]** | **[ 🖼️ TLS certificate chain, cipher suite, ALPN info ]** |
-
----
-
 ## 🗺️ Roadmap
 
 ### Done ✅
 - [x] HTTP/HTTPS/SOCKS5 proxy with MITM
-- [x] AI ReAct Agent with 8 investigation tools
-- [x] Multi-specialist orchestration with handoff
+- [x] AI ReAct Agent with 12 investigation tools
+- [x] Cognitive tools (summarize, classify, flow, hypothesis)
+- [x] Follow-up steering during active analysis
+- [x] Hypothesis-driven signature/encoding analysis
 - [x] MCP tool integration
 - [x] WebSocket capture & inspection
 - [x] Charles-style request tree with host grouping
 - [x] SSL/TLS details view
 - [x] Full timing breakdown
 - [x] HAR/cURL export & request replay
-- [x] Dynamic AI model discovery
 - [x] Content decoding (gzip/deflate/brotli + charset)
+- [x] Per-provider model management
 
 ### Next 🔜
 - [ ] Interactive request/response breakpoints
 - [ ] Map Remote / Map Local (URL rewriting)
 - [ ] DNS spoofing & mirroring
 - [ ] gRPC / Protobuf decoding
-- [ ] Request diff & comparison
 - [ ] Auto-save sessions to disk
 - [ ] Scriptable mock server
 
