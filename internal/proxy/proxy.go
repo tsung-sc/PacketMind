@@ -138,13 +138,18 @@ type wsUpstreamResponse struct {
 // timingCtxKey is the context key for per-request timing capture.
 type timingCtxKey struct{}
 
-func New() *Proxy {
+func New(settings *config.AppSettings) (*Proxy, error) {
+	if settings == nil {
+		return nil, fmt.Errorf("proxy settings are required")
+	}
 	p := &Proxy{
 		transport: newSharedTransport(),
 	}
 	p.transport.Proxy = p.proxyResolver()
-	_ = p.ApplySettings(config.DefaultPacketMindSettings())
-	return p
+	if err := p.ApplySettings(settings); err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 func (p *Proxy) ApplySettings(settings *config.AppSettings) error {

@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"embed"
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -47,15 +50,41 @@ func NewApp() *App {
 	}
 }
 
+func resolveConfigDir() string {
+	cliConfigDir := flag.String("config-dir", "", "Directory containing PacketMind config files")
+	flag.Parse()
+
+	configDir := strings.TrimSpace(*cliConfigDir)
+	if configDir == "" {
+		configDir = strings.TrimSpace(os.Getenv("PACKETMIND_CONFIG_DIR"))
+	}
+	if configDir == "" {
+		configDir = "./configs"
+	}
+	if abs, err := filepath.Abs(configDir); err == nil {
+		return abs
+	}
+	return configDir
+}
+
 func main() {
 	fmt.Println("PacketMind Wails bootstrap")
 	fmt.Printf("[PacketMind] version %s (build %s, commit %s)\n", version.Version, version.BuildTime, version.Commit)
 
-	modelsCfg, err := config.LoadModels("./configs")
+	configDir := resolveConfigDir()
+	fmt.Printf("[PacketMind] config dir: %s\n", configDir)
+
+	modelsStore, err := config.LoadModelsStore(configDir)
 	if err != nil {
 		log.Fatalf("Warning: Failed to load models config: %v", err)
 	}
-
+	config.DefaultModelsStore = modelsStore
+	appSettingsStore, err := config.LoadAppSettingsStore(configDir)
+	if err != nil {
+		log.Printf("Warning: Failed to load packetmind settings: %v, using defaults", err)
+		appSettingsStore = config.NewAppSettingsStore(configDir, config.DefaultPacketMindSettings())
+	}
+	config.DefaultSettingsStore = appSettingsStore
 	if err := os.MkdirAll("./data", 0755); err != nil {
 		log.Fatalf("Failed to create data directory: %v", err)
 	}
@@ -70,19 +99,12 @@ func main() {
 	if err := store.CreateSession(defaultSession); err != nil {
 		log.Fatalf("Failed to create default session: %v", err)
 	}
-	settings, err := config.LoadPacketMindSettings("./configs")
-	if err != nil {
-		log.Printf("Warning: Failed to load packetmind settings: %v, using defaults", err)
-		settings = config.DefaultPacketMindSettings()
-	}
 
-	prox := proxy.New()
-	modelsStore := config.NewModelsStore("./configs", modelsCfg)
-	appSettingsStore := config.NewAppSettingsStore("./configs", settings)
+	prox, err := proxy.New(appSettingsStore.Snapshot())
+	if err != nil {
+		log.Fatalf("Failed to initialize proxy: %v", err)
+	}
 	proxy.Default = prox
-	config.DefaultModelsStore = modelsStore
-	config.DefaultSettingsStore = appSettingsStore
-	prox.ApplySettings(appSettingsStore.Snapshot())
 
 	app := NewApp()
 
@@ -159,25 +181,11 @@ func main() {
 
 func (a *App) startup(ctx context.Context) {
 	appctx.Set(ctx)
-
 	a.applyScreenRelativeWindowSize()
 
-	settings := config.DefaultModelsStore.GetSettings()
-	ag, err := agent.NewAgentFromProvider(
-		settings.APIType,
-		config.DefaultModelsStore.APIKey(settings.Provider),
-		config.DefaultModelsStore.BaseURL(settings.Provider),
-	)
-	if err != nil {
-		log.Printf("[Wails] Agent provider precheck failed: %v", err)
-	}
-
-	if ag != nil {
-		ag.SetStore(storage.Default)
-		mcpManager := initMCPManager(ctx, config.DefaultSettingsStore.Snapshot().MCP)
-		if mcpManager != nil {
-			agent.DefaultMCPManager = mcpManager
-		}
+	mcpManager := initMCPManager(ctx, config.DefaultSettingsStore.Snapshot().MCP)
+	if mcpManager != nil {
+		agent.DefaultMCPManager = mcpManager
 	}
 }
 

@@ -37,6 +37,14 @@ func LoadModels(configPath string) (*ModelsConfig, error) {
 	return &modelsCfg, nil
 }
 
+func LoadModelsStore(configPath string) (*ModelsStore, error) {
+	modelsCfg, err := LoadModels(configPath)
+	if err != nil {
+		return nil, err
+	}
+	return NewModelsStore(configPath, modelsCfg), nil
+}
+
 func NewModelsStore(configPath string, modelsCfg *ModelsConfig) *ModelsStore {
 	cloned := cloneModelsConfig(modelsCfg)
 	cloned.normalize()

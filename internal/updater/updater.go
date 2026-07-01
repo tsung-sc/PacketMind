@@ -12,7 +12,7 @@ import (
 	"github.com/creativeprojects/go-selfupdate"
 )
 
-const GitHubSlug = "packetmind/packetmind"
+const GitHubSlug = "tsung-sc/PacketMind"
 
 var semverVersionPattern = regexp.MustCompile(`^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$`)
 

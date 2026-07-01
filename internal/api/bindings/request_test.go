@@ -34,7 +34,10 @@ func TestComposeRequest_UsesProxyInstanceForExternalProxy(t *testing.T) {
 	settings.Proxy.ExternalProxy.Port = externalProxy.Listener.Addr().(*net.TCPAddr).Port
 	settings.Proxy.ExternalProxy.BypassHosts = nil
 
-	prox := proxy.New()
+	prox, err := proxy.New(settings)
+	if err != nil {
+		t.Fatalf("proxy.New failed: %v", err)
+	}
 	storage.Default = store
 	proxy.Default = prox
 	if err := prox.ApplySettings(settings); err != nil {
@@ -139,7 +142,10 @@ func TestReplayRequest_UsesProxyInstanceForExternalProxy(t *testing.T) {
 	settings.Proxy.ExternalProxy.Port = proxyAddr.Port
 	settings.Proxy.ExternalProxy.BypassHosts = nil
 
-	prox := proxy.New()
+	prox, err := proxy.New(settings)
+	if err != nil {
+		t.Fatalf("proxy.New failed: %v", err)
+	}
 	storage.Default = store
 	proxy.Default = prox
 	if err := prox.ApplySettings(settings); err != nil {

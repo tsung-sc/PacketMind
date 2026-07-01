@@ -12,7 +12,14 @@ type AppSettingsStore struct {
 	settings *AppSettings
 }
 
-// NewAppSettingsStore creates a new thread-safe app settings store.
+func LoadAppSettingsStore(configPath string) (*AppSettingsStore, error) {
+	settings, err := LoadPacketMindSettings(configPath)
+	if err != nil {
+		return nil, err
+	}
+	return NewAppSettingsStore(configPath, settings), nil
+}
+
 func NewAppSettingsStore(configPath string, settings *AppSettings) *AppSettingsStore {
 	cloned := cloneAppSettings(settings)
 	cloned.normalize()

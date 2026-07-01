@@ -560,7 +560,7 @@ gui/                   # Vue 3 前端
 │   ├── stores/       # Pinia 状态管理
 │   ├── composables/  # Vue composables
 │   └── api/          # Wails API 客户端
-configs/               # 配置文件（packetmind.json / models.json / specialists.json）
+configs/               # 配置文件（packetmind.json / models.json）
 docs/                  # 文档
 ```
 

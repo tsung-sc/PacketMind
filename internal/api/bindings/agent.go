@@ -270,17 +270,6 @@ func (a *AgentAPI) SendIntervention(req InterventionRequest) SessionResponse {
 	ac.mu.Lock()
 	ac.steers = append(ac.steers, analysisIntervention{ID: messageID, Content: message})
 	ac.mu.Unlock()
-	if appctx.Ctx != nil {
-		runtime.EventsEmit(appctx.Ctx, "agent:analysis", map[string]interface{}{
-			"analysis_id": analysisID,
-			"session_id":  ac.sessionID,
-			"agent_event": map[string]interface{}{
-				"type":       "thought",
-				"content":    "User steering received. I will apply it at the next safe step.",
-				"created_at": time.Now(),
-			},
-		})
-	}
 	return SessionResponse{Code: 0, Message: "Steering instruction queued for next step"}
 }
 

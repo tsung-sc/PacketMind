@@ -224,6 +224,16 @@
     </div>
 
     <div :class="$style.input">
+      <div v-if="agentStore.pendingSteers.length > 0" :class="$style.pendingIndicator">
+        <a-spin size="small" />
+        <span>{{ agentStore.pendingSteers.length }} follow-up waiting for Agent</span>
+      </div>
+      <div v-if="agentStore.pendingSteers.length > 0" :class="$style.pendingSteerList">
+        <div v-for="item in agentStore.pendingSteers" :key="item.id" :class="$style.pendingSteerItem">
+          <span :class="$style.deliveryBadge">queued</span>
+          <span>{{ item.query }}</span>
+        </div>
+      </div>
       <div v-if="agentStore.pendingQueue.length > 0" :class="$style.pendingIndicator">
         <a-spin size="small" />
         <span>{{ agentStore.pendingQueue.length }} queued for next run</span>
@@ -240,14 +250,15 @@
       </div>
       <a-textarea
         v-model:value="input"
-            :placeholder="agentStore.streaming ? 'Steer current analysis...' : 'Ask anything...'"
+            :placeholder="agentStore.streaming ? 'Type a follow-up...' : 'Ask anything...'"
         :autoSize="{ minRows: 2, maxRows: 4 }"
         @keydown.enter="handleEnter"
       />
       <div :class="$style.inputActions">
         <template v-if="agentStore.streaming">
-          <a-button type="default" @click="handleQueue" :disabled="!input.trim()">Queue</a-button>
-          <a-button type="primary" @click="handleSend" :disabled="!input.trim()">Steer</a-button>
+          <a-button type="primary" @click="handleSend" :disabled="!input.trim()">
+            <template #icon><SendOutlined /></template>
+          </a-button>
           <a-button type="default" danger @click="handleStop">
             <template #icon><StopOutlined /></template>
           </a-button>
@@ -654,12 +665,6 @@ const handleEnter = (e: KeyboardEvent) => {
 const handleSend = () => {
   if (!input.value.trim()) return;
   agentStore.analyzeWithQuery(effectiveRequestId.value, input.value, undefined, agentStore.streaming ? 'steer' : 'queue');
-  input.value = '';
-};
-
-const handleQueue = () => {
-  if (!input.value.trim()) return;
-  agentStore.analyzeWithQuery(effectiveRequestId.value, input.value, undefined, 'queue');
   input.value = '';
 };
 
@@ -1763,6 +1768,30 @@ const showContextModal = () => {
   border-radius: 4px;
   font-size: 11px;
   color: #d48806;
+}
+
+.pendingSteerList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid #d8d8d8;
+  background: #f3f3f3;
+  font-size: 11px;
+  color: #444;
+}
+
+.pendingSteerItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pendingSteerItem span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inputActions {

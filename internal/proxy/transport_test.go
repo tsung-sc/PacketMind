@@ -44,7 +44,7 @@ func TestExecuteRequestWithClientHello_FallsBackWithoutGetBody(t *testing.T) {
 		t.Fatalf("NewStorage failed: %v", err)
 	}
 	storage.Default = store
-	p := New()
+	p := newTestProxy(t)
 	req, err := http.NewRequest(http.MethodPost, "http://example.com", bytes.NewReader([]byte("payload")))
 	if err != nil {
 		t.Fatalf("NewRequest failed: %v", err)

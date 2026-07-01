@@ -239,10 +239,10 @@ func (a *Agent) buildInitialPrompt(req *AgentRequest, target *storage.Request, s
 	}
 
 	if target == nil {
-		return ExecutePrompt("initial_prompt_no_target", map[string]any{
-			"Query":     query,
-			"SessionID": sessionID,
-		})
+		if strings.TrimSpace(sessionID) == "" {
+			return "Analysis target: " + query
+		}
+		return fmt.Sprintf("Analysis target: %s\n\nNo target request is set. Current session_id: %s", query, sessionID)
 	}
 
 	snapshotSessionID := sessionID
@@ -250,14 +250,7 @@ func (a *Agent) buildInitialPrompt(req *AgentRequest, target *storage.Request, s
 		snapshotSessionID = target.SessionID
 	}
 
-	return ExecutePrompt("initial_prompt_with_target", map[string]any{
-		"Query":     query,
-		"RequestID": target.ID,
-		"SessionID": sessionID,
-		"Host":      target.Host,
-		"Path":      target.Path,
-		"Snapshot":  builtin.MustMarshalJSON(builtin.MakeRequestSnapshot(target, snapshotSessionID)),
-	})
+	return fmt.Sprintf("Analysis target: %s\n\nStarting context:\n- request_id: %s\n- session_id: %s\n- host: %s\n- path: %s\n\nInitial request snapshot (JSON):\n%s", query, target.ID, sessionID, target.Host, target.Path, builtin.MustMarshalJSON(builtin.MakeRequestSnapshot(target, snapshotSessionID)))
 }
 
 func (a *Agent) loadChatHistoryMessages(sessionID string) ([]*llmtypes.LLMMessage, error) {

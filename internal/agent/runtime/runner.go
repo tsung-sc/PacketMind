@@ -136,6 +136,23 @@ func (r *Runner) SetSystemPrompt(prompt string) {
 	r.systemPrompt = strings.TrimSpace(prompt)
 }
 
+func (r *Runner) takeInterventions(transcript *[]*llmtypes.LLMMessage, onEvent AgentEventHandler) bool {
+	if r == nil || r.intervention == nil || transcript == nil {
+		return false
+	}
+	applied := false
+	for _, item := range r.intervention() {
+		if trimmed := strings.TrimSpace(item.Content); trimmed != "" {
+			*transcript = append(*transcript, &llmtypes.LLMMessage{Role: llmtypes.RoleUser, Content: "User intervention while you were working. Treat this as the latest steering instruction and adjust your next step:\n" + trimmed})
+			applied = true
+			if onEvent != nil && strings.TrimSpace(item.ID) != "" {
+				onEvent(AgentEvent{Type: "intervention_applied", InterventionID: item.ID, CreatedAt: time.Now()})
+			}
+		}
+	}
+	return applied
+}
+
 func (r *Runner) Run(ctx context.Context, input []*llmtypes.LLMMessage, onEvent AgentEventHandler) (*RuntimeResult, error) {
 	if r.client == nil {
 		return nil, fmt.Errorf("runtime runner llm client is nil")
@@ -174,16 +191,7 @@ func (r *Runner) Run(ctx context.Context, input []*llmtypes.LLMMessage, onEvent 
 			return nil, err
 		}
 
-		if r.intervention != nil {
-			for _, item := range r.intervention() {
-				if trimmed := strings.TrimSpace(item.Content); trimmed != "" {
-					transcript = append(transcript, &llmtypes.LLMMessage{Role: llmtypes.RoleUser, Content: "User intervention while you were working. Treat this as the latest steering instruction and adjust your next step:\n" + trimmed})
-					if onEvent != nil && strings.TrimSpace(item.ID) != "" {
-						onEvent(AgentEvent{Type: "intervention_applied", InterventionID: item.ID, CreatedAt: time.Now()})
-					}
-				}
-			}
-		}
+		r.takeInterventions(&transcript, onEvent)
 
 		if onEvent != nil {
 			onEvent(AgentEvent{
@@ -228,6 +236,9 @@ func (r *Runner) Run(ctx context.Context, input []*llmtypes.LLMMessage, onEvent 
 		}
 
 		if len(assistant.ToolCalls) == 0 {
+			if r.takeInterventions(&transcript, onEvent) {
+				continue
+			}
 			result.FinalAnswer = extractFinalAnswer(assistant, lastAssistantTerminalText)
 			if strings.TrimSpace(result.FinalAnswer) == "" {
 				result.StoppedEarly = true

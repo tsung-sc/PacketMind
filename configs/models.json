@@ -1,0 +1,8 @@
+{
+  "providers": [],
+  "default_model": "",
+  "active_provider": "",
+  "active_model": "",
+  "active_max_tokens": 4096,
+  "active_temperature": 0.7
+}

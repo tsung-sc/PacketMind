@@ -3,14 +3,12 @@ gui/dist/
 bin/
 docs/
 data/
+configs_local/
 
 # Local IDE / agent artifacts
 .idea/
 .omo/
 .playwright-mcp/
-
-# Local runtime secrets
-configs/models.json
 
 # Local debug captures / screenshots
 agent-*.yml

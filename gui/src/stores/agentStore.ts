@@ -42,6 +42,13 @@ export interface PendingQuery {
   sessionId?: string
 }
 
+export interface PendingSteer {
+  id: string
+  requestId?: string
+  query: string
+  sessionId?: string
+}
+
 interface SessionSnapshot {
   messages: Message[]
   messageSequence: number
@@ -59,6 +66,7 @@ interface SessionSnapshot {
   traceExpanded: boolean
   provenanceChain: ProvenanceChain | null
   pendingQueue: PendingQuery[]
+  pendingSteers: PendingSteer[]
 }
 
 export const useAgentStore = defineStore('agent', () => {
@@ -70,6 +78,7 @@ export const useAgentStore = defineStore('agent', () => {
   const llmWaiting = ref<boolean>(false)
   const analysisId = ref<string | null>(null)
   const pendingQueue = ref<PendingQuery[]>([])
+  const pendingSteers = ref<PendingSteer[]>([])
   const models = ref<AgentModel[]>([])
   const selectedModelId = ref<string>('')
   const defaultModel = ref<string>('')
@@ -271,7 +280,7 @@ export const useAgentStore = defineStore('agent', () => {
     return models.value.find((m: AgentModel) => m.id === selectedModelId.value)
   }
 
-  const nextMessageId = (prefix: 'msg' | 'trace') => {
+  const nextMessageId = (prefix: 'msg' | 'trace' | 'steer') => {
     if (prefix === 'trace') {
       traceSequence.value += 1
       return `trace_${Date.now()}_${traceSequence.value}`
@@ -372,6 +381,7 @@ export const useAgentStore = defineStore('agent', () => {
     tokenUsage.value = null
     tokensUsed.value = 0
     pendingQueue.value = []
+    pendingSteers.value = []
     sessionContext.value = null
   }
 
@@ -434,8 +444,15 @@ export const useAgentStore = defineStore('agent', () => {
         break
 
       case 'intervention_applied': {
-        const target = messages.value.find((msg) => msg.id === event.intervention_id)
-        if (target) target.deliveryStatus = 'submitted'
+        const index = pendingSteers.value.findIndex((item) => item.id === event.intervention_id)
+        if (index >= 0) {
+          const [item] = pendingSteers.value.splice(index, 1)
+          flushCurrentContentAsAssistant()
+          addMessage('user', item.query, { deliveryStatus: 'submitted', deliveryMode: 'steer' })
+        } else {
+          const target = messages.value.find((msg) => msg.id === event.intervention_id)
+          if (target) target.deliveryStatus = 'submitted'
+        }
         break
       }
 
@@ -551,6 +568,7 @@ export const useAgentStore = defineStore('agent', () => {
       traceExpanded: traceExpanded.value,
       provenanceChain: provenanceChain.value,
       pendingQueue: [...pendingQueue.value],
+      pendingSteers: [...pendingSteers.value],
     })
   }
 
@@ -573,6 +591,7 @@ export const useAgentStore = defineStore('agent', () => {
       traceExpanded.value = snapshot.traceExpanded
       provenanceChain.value = snapshot.provenanceChain
       pendingQueue.value = [...snapshot.pendingQueue]
+      pendingSteers.value = [...snapshot.pendingSteers]
     } else {
       messages.value = []
       messageSequence.value = 0
@@ -590,6 +609,7 @@ export const useAgentStore = defineStore('agent', () => {
       traceExpanded.value = false
       provenanceChain.value = null
       pendingQueue.value = []
+      pendingSteers.value = []
     }
     sessionContext.value = null
   }
@@ -620,6 +640,7 @@ export const useAgentStore = defineStore('agent', () => {
         traceExpanded.value = false
         provenanceChain.value = null
         pendingQueue.value = []
+        pendingSteers.value = []
         sessionContext.value = null
         saveCurrentSnapshot()
         return true
@@ -769,7 +790,13 @@ export const useAgentStore = defineStore('agent', () => {
       if (mode === 'abort') {
         await stopAnalysis()
       } else if (analysisId.value) {
-        const steerMessage = addMessage('user', query, { deliveryStatus: 'queued', deliveryMode: 'steer' })
+        const steerMessage: PendingSteer = {
+          id: nextMessageId('steer'),
+          requestId,
+          query,
+          sessionId: resolvedSessionId,
+        }
+        pendingSteers.value.push(steerMessage)
         lastUserQuery.value = query
         const response = await agentApi.sendIntervention({
           analysis_id: analysisId.value,
@@ -779,6 +806,7 @@ export const useAgentStore = defineStore('agent', () => {
           mode: 'steer',
         })
         if (response.code !== 0) {
+          pendingSteers.value = pendingSteers.value.filter((item) => item.id !== steerMessage.id)
           addToPendingQueue(requestId, query, resolvedSessionId)
         }
         saveCurrentSnapshot()
@@ -848,6 +876,7 @@ export const useAgentStore = defineStore('agent', () => {
     tokenUsage,
     tokensUsed,
     pendingQueue,
+    pendingSteers,
     sessionContext,
     lastUserQuery,
     hasAgentTrace,

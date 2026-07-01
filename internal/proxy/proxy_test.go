@@ -18,8 +18,18 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/packetmind/packetmind/internal/config"
 	"github.com/packetmind/packetmind/internal/storage"
 )
+
+func newTestProxy(t *testing.T) *Proxy {
+	t.Helper()
+	p, err := New(config.DefaultPacketMindSettings())
+	if err != nil {
+		t.Fatalf("New proxy failed: %v", err)
+	}
+	return p
+}
 
 func TestHandleSOCKS5Connection_PreservesPeekedTLSBytes(t *testing.T) {
 	store, err := storage.NewStorage("")
@@ -28,7 +38,7 @@ func TestHandleSOCKS5Connection_PreservesPeekedTLSBytes(t *testing.T) {
 	}
 	storage.Default = store
 
-	p := New()
+	p := newTestProxy(t)
 	settings := p.appSettingsSnapshot()
 	settings.Proxy.Listener.MITMEnabled = false
 	settings.Proxy.SSLProxying.Enabled = false
@@ -215,7 +225,7 @@ func TestHandleSOCKS5Connection_MITMRecordsHTTPSRequest(t *testing.T) {
 	}
 	storage.Default = store
 
-	p := New()
+	p := newTestProxy(t)
 	settings := p.appSettingsSnapshot()
 	settings.Proxy.Listener.HTTPEnabled = true
 	settings.Proxy.Listener.HTTPSEnabled = true
@@ -391,7 +401,7 @@ func TestHandleMITMWebSocket_CapturesFrames(t *testing.T) {
 		t.Fatalf("NewStorage failed: %v", err)
 	}
 	storage.Default = store
-	p := New()
+	p := newTestProxy(t)
 	settings := p.appSettingsSnapshot()
 	settings.Proxy.Listener.Port = proxyPort
 	settings.Proxy.Listener.HTTPEnabled = true
@@ -731,7 +741,7 @@ func newTestProxyForPort(t *testing.T, port int) *Proxy {
 		t.Fatalf("NewStorage failed: %v", err)
 	}
 	storage.Default = store
-	p := New()
+	p := newTestProxy(t)
 	settings := p.appSettingsSnapshot()
 	settings.Proxy.Listener.Port = port
 	settings.Proxy.Listener.HTTPEnabled = true
