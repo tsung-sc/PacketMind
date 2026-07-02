@@ -419,6 +419,13 @@ onMounted(() => {
       appVersion.value = res.data.version;
     }
   });
+
+  updaterApi.checkForUpdate().then(res => {
+    if (res.code === 0 && res.data?.has_update) {
+      const latest = res.data.latest_version || '';
+      message.info(`New version ${latest} available. Open Help → Check for Updates to install.`, 10);
+    }
+  }).catch(() => {});
 });
 
 // Resize logic
