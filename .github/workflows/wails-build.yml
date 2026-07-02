@@ -28,16 +28,6 @@ jobs:
             platform: windows
             goos: windows
             goarch: arm64
-          - name: darwin-amd64
-            os: macos-13
-            platform: darwin
-            goos: darwin
-            goarch: amd64
-          - name: darwin-arm64
-            os: macos-latest
-            platform: darwin
-            goos: darwin
-            goarch: arm64
           - name: linux-amd64
             os: ubuntu-22.04
             platform: linux
