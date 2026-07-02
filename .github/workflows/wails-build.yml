@@ -75,6 +75,13 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
 
+      - name: Build frontend
+        shell: bash
+        run: |
+          cd gui
+          npm ci
+          npm run build
+
       - name: Build Wails app
         shell: bash
         run: |
