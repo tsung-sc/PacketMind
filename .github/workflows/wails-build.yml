@@ -150,6 +150,7 @@ jobs:
           name: release-${{ matrix.name }}
           path: dist/*
           retention-days: 1
+          compression-level: 0
 
   release:
     name: Create GitHub Release
