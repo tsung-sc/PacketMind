@@ -123,7 +123,7 @@ jobs:
           mkdir -p dist/dmg
           cp -R build/bin/PacketMind.app dist/dmg/
           ln -s /Applications dist/dmg/Applications
-          hdiutil create -volname "PacketMind" -srcfolder dist/dmg -ov -format UDZO "dist/PacketMind_${{ github.ref_name }}_darwin_${{ matrix.goarch }}.dmg"
+          hdiutil create -volname "PacketMind" -srcfolder dist/dmg -ov -format UDZO -imagekey zlib-level=9 "dist/PacketMind_${{ github.ref_name }}_darwin_${{ matrix.goarch }}.dmg"
 
       - name: Package Linux tarball
         if: matrix.platform == 'linux'
