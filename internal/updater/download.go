@@ -14,6 +14,11 @@ import (
 	"time"
 )
 
+var downloadHTTPClient = &http.Client{
+	Timeout:   0,
+	Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
+}
+
 func (u *Updater) downloadToDir(ctx context.Context, url, assetName, dir string, total int64) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
@@ -26,15 +31,11 @@ func (u *Updater) downloadToDir(ctx context.Context, url, assetName, dir string,
 }
 
 func (u *Updater) downloadFile(ctx context.Context, url, target string, total int64) error {
-	client := u.httpClient
-	if client == nil {
-		client = http.DefaultClient
-	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
-	resp, err := client.Do(req)
+	resp, err := downloadHTTPClient.Do(req)
 	if err != nil {
 		return err
 	}

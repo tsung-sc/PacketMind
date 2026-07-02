@@ -39,7 +39,7 @@
         <div :class="$style.stateText">Downloading update...</div>
         <a-progress :percent="progress?.percent || 0" status="active" />
         <div :class="$style.progressDetail" v-if="progress">
-          {{ formatBytes(progress.downloaded) }} / {{ formatBytes(progress.total) }}
+          {{ formatBytes(progress.downloaded) }} / {{ formatBytes(progress.total) }} ({{ Math.round(progress.percent) }}%)
         </div>
       </div>
 

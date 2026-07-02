@@ -43,8 +43,11 @@ type Updater struct {
 func NewUpdater(currentVersion string) *Updater {
 	return &Updater{
 		currentVersion: strings.TrimSpace(currentVersion),
-		httpClient:     &http.Client{Timeout: 60 * time.Second},
-		latestURL:      fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", GitHubSlug),
+		httpClient: &http.Client{
+			Timeout:   60 * time.Second,
+			Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
+		},
+		latestURL: fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", GitHubSlug),
 	}
 }
 
