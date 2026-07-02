@@ -387,6 +387,15 @@ export const updaterApi = {
   checkForUpdate: async (): Promise<ApiResponse<UpdateInfo>> => {
     return normalizeResponse<UpdateInfo>(await callUpdater('CheckForUpdate'))
   },
+  downloadUpdate: async (): Promise<ApiResponse<{ version: string; path: string; name: string; size: number }>> => {
+    return normalizeResponse<{ version: string; path: string; name: string; size: number }>(await callUpdater('DownloadUpdate'))
+  },
+  openDownloadedUpdate: async (path: string): Promise<ApiResponse<void>> => {
+    return normalizeResponse<void>(await callUpdater('OpenDownloadedUpdate', path))
+  },
+  showDownloadedUpdate: async (path: string): Promise<ApiResponse<void>> => {
+    return normalizeResponse<void>(await callUpdater('ShowDownloadedUpdate', path))
+  },
   performUpdate: async (): Promise<ApiResponse<void>> => {
     return normalizeResponse<void>(await callUpdater('PerformUpdate'))
   },

@@ -16,4 +16,9 @@ modal-*.yml
 modal-screenshot.png
 model-config-channel-crud.png
 packetmind-*.png
+PacketMind_*.zip
+PacketMind_*.tar.gz
+PacketMind_*.dmg
+PacketMindInstaller_*.exe
+checksums.txt
 nul

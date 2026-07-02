@@ -11,6 +11,7 @@ export function useUpdater() {
   const progress = ref<UpdateProgress | null>(null)
   const error = ref<string | null>(null)
   const updateReady = ref(false)
+  const downloadedUpdate = ref<{ version: string; path: string; name: string; size: number } | null>(null)
 
   const reset = () => {
     checking.value = false
@@ -19,6 +20,7 @@ export function useUpdater() {
     progress.value = null
     error.value = null
     updateReady.value = false
+    downloadedUpdate.value = null
   }
 
   const checkForUpdate = async () => {
@@ -46,9 +48,13 @@ export function useUpdater() {
     progress.value = { downloaded: 0, total: 1, percent: 0 }
     
     try {
-      const response = await updaterApi.performUpdate()
+      const response = await updaterApi.downloadUpdate()
       if (response.code !== 0) {
-        error.value = response.message || 'Failed to start download'
+        error.value = response.message || 'Failed to download update installer'
+        downloading.value = false
+      } else if (response.data) {
+        downloadedUpdate.value = response.data
+        updateReady.value = true
         downloading.value = false
       }
     } catch (e: any) {
@@ -62,13 +68,26 @@ export function useUpdater() {
     progress.value = data
   }
 
-  const handleDone = (success: boolean) => {
+  const handleDone = (data: boolean | { success?: boolean; path?: string; name?: string; version?: string }) => {
     downloading.value = false
+    const success = typeof data === 'boolean' ? data : data?.success !== false
     if (success) {
       updateReady.value = true
     } else {
-      error.value = 'Update failed during installation'
+      error.value = 'Update failed during download'
     }
+  }
+
+  const openDownloadedUpdate = async () => {
+    if (!downloadedUpdate.value?.path) return
+    const response = await updaterApi.openDownloadedUpdate(downloadedUpdate.value.path)
+    if (response.code !== 0) error.value = response.message || 'Failed to open installer'
+  }
+
+  const showDownloadedUpdate = async () => {
+    if (!downloadedUpdate.value?.path) return
+    const response = await updaterApi.showDownloadedUpdate(downloadedUpdate.value.path)
+    if (response.code !== 0) error.value = response.message || 'Failed to show installer in folder'
   }
 
   onMounted(() => {
@@ -92,8 +111,11 @@ export function useUpdater() {
     progress,
     error,
     updateReady,
+    downloadedUpdate,
     checkForUpdate,
     performUpdate,
+    openDownloadedUpdate,
+    showDownloadedUpdate,
     reset
   }
 }

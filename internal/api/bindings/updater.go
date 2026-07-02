@@ -53,18 +53,43 @@ func (a *UpdaterAPI) CheckForUpdate() SessionResponse {
 	return SessionResponse{Code: 0, Data: info}
 }
 
-// PerformUpdate downloads and applies the latest update.
-func (a *UpdaterAPI) PerformUpdate() SessionResponse {
+func (a *UpdaterAPI) DownloadUpdate() SessionResponse {
 	if appctx.Ctx == nil {
 		return SessionResponse{Code: 50003, Message: "context not initialized"}
 	}
-	if err := a.updater.PerformUpdate(appctx.Ctx); err != nil {
-		return SessionResponse{Code: 50001, Message: fmt.Sprintf("update failed: %v", err)}
+	info, err := a.updater.DownloadInstaller(appctx.Ctx)
+	if err != nil {
+		return SessionResponse{Code: 50001, Message: fmt.Sprintf("download update failed: %v", err)}
+	}
+	if info == nil {
+		return SessionResponse{Code: 40004, Message: "no update available"}
 	}
 	if appctx.Ctx != nil {
 		runtime.EventsEmit(appctx.Ctx, "update:done", map[string]any{
 			"success": true,
+			"path":    info.Path,
+			"name":    info.Name,
+			"version": info.Version,
 		})
 	}
-	return SessionResponse{Code: 0, Message: "Update applied successfully. Please restart PacketMind."}
+	return SessionResponse{Code: 0, Message: "Update installer downloaded", Data: info}
+}
+
+func (a *UpdaterAPI) OpenDownloadedUpdate(path string) SessionResponse {
+	if err := updater.OpenPath(path); err != nil {
+		return SessionResponse{Code: 50001, Message: err.Error()}
+	}
+	return SessionResponse{Code: 0}
+}
+
+func (a *UpdaterAPI) ShowDownloadedUpdate(path string) SessionResponse {
+	if err := updater.ShowInFolder(path); err != nil {
+		return SessionResponse{Code: 50001, Message: err.Error()}
+	}
+	return SessionResponse{Code: 0}
+}
+
+// PerformUpdate downloads and applies the latest update.
+func (a *UpdaterAPI) PerformUpdate() SessionResponse {
+	return a.DownloadUpdate()
 }

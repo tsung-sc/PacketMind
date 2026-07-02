@@ -12,26 +12,42 @@ env:
 
 jobs:
   build:
-    name: Build ${{ matrix.platform }}
+    name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: windows-latest
+          - name: windows-amd64
+            os: windows-latest
             platform: windows
             goos: windows
             goarch: amd64
-            ext: .zip
-          - os: macos-latest
+          - name: windows-arm64
+            os: windows-latest
+            platform: windows
+            goos: windows
+            goarch: arm64
+          - name: darwin-amd64
+            os: macos-13
+            platform: darwin
+            goos: darwin
+            goarch: amd64
+          - name: darwin-arm64
+            os: macos-latest
             platform: darwin
             goos: darwin
             goarch: arm64
-            ext: .zip
-          - os: ubuntu-latest
+          - name: linux-amd64
+            os: ubuntu-latest
             platform: linux
             goos: linux
             goarch: amd64
-            ext: .tar.gz
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            platform: linux
+            goos: linux
+            goarch: arm64
 
     steps:
       - name: Checkout code
@@ -59,38 +75,87 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
 
-      - name: Build frontend
-        run: |
-          cd gui
-          npm ci
-          npm run build
-
       - name: Build Wails app
-        run: wails build -ldflags "-X github.com/packetmind/packetmind/internal/version.Version=${{ github.ref_name }} -X github.com/packetmind/packetmind/internal/version.BuildTime=$(date -u '+%Y-%m-%d_%H:%M:%S') -X github.com/packetmind/packetmind/internal/version.Commit=${{ github.sha }}"
+        shell: bash
+        run: |
+          BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
+          wails build -platform ${{ matrix.goos }}/${{ matrix.goarch }} -ldflags "-X github.com/packetmind/packetmind/internal/version.Version=${{ github.ref_name }} -X github.com/packetmind/packetmind/internal/version.BuildTime=${BUILD_TIME} -X github.com/packetmind/packetmind/internal/version.Commit=${{ github.sha }}"
 
-      - name: Package Windows artifact
+      - name: Prepare dist directory
+        shell: bash
+        run: mkdir -p dist
+
+      - name: Package Windows portable zip
         if: matrix.platform == 'windows'
+        shell: powershell
         run: |
-          cd build/bin
-          Compress-Archive -Path packetmind.exe -DestinationPath ../../PacketMind_${{ github.ref_name }}_windows_amd64.zip
+          New-Item -ItemType Directory -Force -Path dist\PacketMind\configs | Out-Null
+          Copy-Item build\bin\packetmind.exe dist\PacketMind\packetmind.exe
+          Copy-Item configs\packetmind.json dist\PacketMind\configs\packetmind.json
+          Copy-Item configs\models.json dist\PacketMind\configs\models.json
+          Compress-Archive -Path dist\PacketMind\* -DestinationPath "dist\PacketMind_${{ github.ref_name }}_windows_${{ matrix.goarch }}.zip"
 
-      - name: Package macOS artifact
+      - name: Install Inno Setup
+        if: matrix.platform == 'windows'
+        shell: powershell
+        run: choco install innosetup -y
+
+      - name: Package Windows installer
+        if: matrix.platform == 'windows'
+        shell: powershell
+        run: |
+          $env:PACKETMIND_VERSION="${{ github.ref_name }}"
+          $env:PACKETMIND_ARCH="${{ matrix.goarch }}"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\windows\packetmind.iss
+
+      - name: Add configs to macOS bundle
         if: matrix.platform == 'darwin'
+        shell: bash
+        run: |
+          mkdir -p build/bin/PacketMind.app/Contents/Resources/configs
+          cp configs/packetmind.json build/bin/PacketMind.app/Contents/Resources/configs/
+          cp configs/models.json build/bin/PacketMind.app/Contents/Resources/configs/
+
+      - name: Package macOS app zip
+        if: matrix.platform == 'darwin'
+        shell: bash
         run: |
           cd build/bin
-          zip -r ../../PacketMind_${{ github.ref_name }}_darwin_arm64.zip PacketMind.app
+          zip -r ../../dist/PacketMind_${{ github.ref_name }}_darwin_${{ matrix.goarch }}.zip PacketMind.app
 
-      - name: Package Linux artifact
+      - name: Package macOS dmg
+        if: matrix.platform == 'darwin'
+        shell: bash
+        run: |
+          mkdir -p dist/dmg
+          cp -R build/bin/PacketMind.app dist/dmg/
+          ln -s /Applications dist/dmg/Applications
+          hdiutil create -volname "PacketMind" -srcfolder dist/dmg -ov -format UDZO "dist/PacketMind_${{ github.ref_name }}_darwin_${{ matrix.goarch }}.dmg"
+
+      - name: Package Linux tarball
         if: matrix.platform == 'linux'
+        shell: bash
         run: |
-          cd build/bin
-          tar -czf ../../PacketMind_${{ github.ref_name }}_linux_amd64.tar.gz packetmind
+          mkdir -p dist/PacketMind/configs
+          cp build/bin/packetmind dist/PacketMind/packetmind
+          cp configs/packetmind.json dist/PacketMind/configs/packetmind.json
+          cp configs/models.json dist/PacketMind/configs/models.json
+          cat > dist/PacketMind/packetmind.desktop <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=PacketMind
+          Exec=packetmind
+          Categories=Development;Network;
+          Terminal=false
+          EOF
+          cd dist
+          tar -czf PacketMind_${{ github.ref_name }}_linux_${{ matrix.goarch }}.tar.gz PacketMind
 
-      - name: Upload packaged artifact
+      - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.platform }}
-          path: PacketMind_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ matrix.ext }}
+          name: release-${{ matrix.name }}
+          path: dist/*
           retention-days: 1
 
   release:
@@ -114,21 +179,17 @@ jobs:
       - name: Collect and checksum
         run: |
           mkdir -p dist
-          find release-assets -type f \( -name "*.zip" -o -name "*.tar.gz" \) -exec cp {} dist/ \;
+          find release-assets -type f \( -name "*.exe" -o -name "*.zip" -o -name "*.dmg" -o -name "*.tar.gz" -o -name "*.AppImage" \) -exec cp {} dist/ \;
           cd dist
-          sha256sum *.zip *.tar.gz > checksums.txt
-          echo "## Checksums" >> checksums_display.txt
-          cat checksums.txt >> checksums_display.txt
+          sha256sum * > checksums.txt
           cat checksums.txt
 
       - name: Generate release notes
         id: release_notes
         run: |
-          # Extract changelog section for this version
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
           if [ -f CHANGELOG.md ]; then
-            # Try to extract the section for this version
             NOTES=$(sed -n "/^## \[${VERSION}\]/,/^## \[/{ /^## \[${VERSION}\]/d; /^## \[/d; p; }" CHANGELOG.md || true)
             if [ -z "$NOTES" ]; then
               NOTES=$(sed -n "/^## \[${TAG}\]/,/^## \[/{ /^## \[${TAG}\]/d; /^## \[/d; p; }" CHANGELOG.md || true)
@@ -148,8 +209,6 @@ jobs:
         with:
           body: ${{ steps.release_notes.outputs.notes }}
           files: |
-            dist/*.zip
-            dist/*.tar.gz
-            dist/checksums.txt
+            dist/*
           draft: false
           prerelease: false

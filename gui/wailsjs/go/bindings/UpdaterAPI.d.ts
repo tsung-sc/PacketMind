@@ -4,6 +4,12 @@ import {bindings} from '../models';
 
 export function CheckForUpdate():Promise<bindings.SessionResponse>;
 
+export function DownloadUpdate():Promise<bindings.SessionResponse>;
+
 export function GetVersion():Promise<bindings.SessionResponse>;
 
+export function OpenDownloadedUpdate(arg1:string):Promise<bindings.SessionResponse>;
+
 export function PerformUpdate():Promise<bindings.SessionResponse>;
+
+export function ShowDownloadedUpdate(arg1:string):Promise<bindings.SessionResponse>;

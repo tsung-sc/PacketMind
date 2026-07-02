@@ -3,8 +3,11 @@ package updater
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -17,8 +20,8 @@ func TestNewUpdater(t *testing.T) {
 	if u.currentVersion != "1.2.3" {
 		t.Fatalf("expected current version to be stored, got %q", u.currentVersion)
 	}
-	if u.newClient == nil {
-		t.Fatal("expected default client factory to be configured")
+	if u.httpClient == nil {
+		t.Fatal("expected http client")
 	}
 }
 
@@ -29,27 +32,24 @@ func TestUpdaterCurrentVersion(t *testing.T) {
 	}
 }
 
-func TestUpdaterCheckForUpdateWithMock(t *testing.T) {
+func TestUpdaterCheckForUpdateWithInstallerAsset(t *testing.T) {
 	publishedAt := time.Date(2026, 4, 12, 8, 30, 0, 0, time.UTC)
-	client := &fakeUpdateClient{
-		release: &releaseInfo{
-			version:      "1.1.0",
-			releaseNotes: "bug fixes",
-			publishedAt:  publishedAt,
-			downloadURL:  "https://example.com/packetmind.zip",
-			assetSize:    2048,
-			greaterThan: func(current string) bool {
-				return current == "1.0.0"
-			},
-		},
-		found: true,
-	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(githubRelease{
+			TagName:     "v1.1.0",
+			Body:        "bug fixes",
+			PublishedAt: publishedAt,
+			Assets: []githubAsset{{
+				Name:               "PacketMindInstaller_v1.1.0_windows_amd64.exe",
+				BrowserDownloadURL: "https://example.com/installer.exe",
+				Size:               2048,
+			}},
+		})
+	}))
+	defer server.Close()
 
-	u := NewUpdater("1.0.0")
-	u.newClient = func(ProgressCallback) (updateClient, error) {
-		return client, nil
-	}
-
+	u := NewUpdater("v1.0.0")
+	u.latestURL = server.URL
 	info, err := u.CheckForUpdate(context.Background())
 	if err != nil {
 		t.Fatalf("CheckForUpdate failed: %v", err)
@@ -57,87 +57,63 @@ func TestUpdaterCheckForUpdateWithMock(t *testing.T) {
 	if !info.HasUpdate {
 		t.Fatalf("expected HasUpdate=true, got %+v", info)
 	}
-	if info.CurrentVersion != "1.0.0" || info.LatestVersion != "1.1.0" {
+	if info.CurrentVersion != "v1.0.0" || info.LatestVersion != "v1.1.0" {
 		t.Fatalf("unexpected versions: %+v", info)
 	}
 	if info.ReleaseNotes != "bug fixes" {
-		t.Fatalf("expected release notes to be propagated, got %+v", info)
+		t.Fatalf("expected release notes, got %+v", info)
 	}
 	if info.PublishedAt != publishedAt.Format(time.RFC3339) {
 		t.Fatalf("unexpected published_at: %q", info.PublishedAt)
 	}
-	if info.DownloadURL != "https://example.com/packetmind.zip" || info.AssetSize != 2048 {
-		t.Fatalf("unexpected download metadata: %+v", info)
+	if info.AssetName != "PacketMindInstaller_v1.1.0_windows_amd64.exe" || info.AssetSize != 2048 {
+		t.Fatalf("unexpected asset metadata: %+v", info)
 	}
 }
 
 func TestUpdaterCheckForUpdateReturnsError(t *testing.T) {
-	expectedErr := errors.New("boom")
-	u := NewUpdater("1.0.0")
-	u.newClient = func(ProgressCallback) (updateClient, error) {
-		return &fakeUpdateClient{detectErr: expectedErr}, nil
-	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "boom", http.StatusInternalServerError)
+	}))
+	defer server.Close()
 
+	u := NewUpdater("1.0.0")
+	u.latestURL = server.URL
 	_, err := u.CheckForUpdate(context.Background())
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected wrapped error %v, got %v", expectedErr, err)
+}
+
+func TestShouldUpdateSkipsAlreadyLatest(t *testing.T) {
+	if shouldUpdate("v1.0.0", "v1.0.0") {
+		t.Fatal("expected no update for same version")
 	}
 }
 
-func TestUpdaterPerformUpdateSkipsWhenAlreadyLatest(t *testing.T) {
-	client := &fakeUpdateClient{
-		release: &releaseInfo{
-			version: "1.0.0",
-			greaterThan: func(string) bool {
-				return false
-			},
-		},
-		found: true,
-	}
-
-	u := NewUpdater("1.0.0")
-	u.newClient = func(ProgressCallback) (updateClient, error) {
-		return client, nil
-	}
-
-	if err := u.PerformUpdate(context.Background()); err != nil {
-		t.Fatalf("PerformUpdate failed: %v", err)
-	}
-	if client.updateCalls != 0 {
-		t.Fatalf("expected update to be skipped, got %d calls", client.updateCalls)
+func TestShouldUpdateWithNonSemverCurrentVersion(t *testing.T) {
+	if !shouldUpdate("dev", "v1.1.0") {
+		t.Fatal("expected dev to update to release")
 	}
 }
 
-func TestUpdaterPerformUpdateWithNonSemverCurrentVersion(t *testing.T) {
-	client := &fakeUpdateClient{
-		release: &releaseInfo{version: "1.1.0"},
-		found:   true,
+func TestSelectInstallerAssetPrefersWindowsInstaller(t *testing.T) {
+	assets := []githubAsset{
+		{Name: "PacketMind_v1.1.0_windows_amd64.zip"},
+		{Name: "PacketMindInstaller_v1.1.0_windows_amd64.exe"},
 	}
-
-	u := NewUpdater("dev")
-	u.newClient = func(ProgressCallback) (updateClient, error) {
-		return client, nil
-	}
-
-	if err := u.PerformUpdate(context.Background()); err != nil {
-		t.Fatalf("PerformUpdate failed: %v", err)
-	}
-	if client.updateCalls != 1 {
-		t.Fatalf("expected update to be applied once, got %d", client.updateCalls)
+	asset := selectInstallerAsset(assets, "windows", "amd64")
+	if asset == nil || asset.Name != "PacketMindInstaller_v1.1.0_windows_amd64.exe" {
+		t.Fatalf("unexpected asset: %+v", asset)
 	}
 }
 
 func TestProgressReaderReportsProgress(t *testing.T) {
-	src := &trackingReadCloser{reader: bytes.NewReader([]byte("abcdef"))}
+	src := bytes.NewReader([]byte("abcdef"))
 	var updates [][2]int64
-
 	reader := newProgressReader(src, 6, func(downloaded, total int64) {
 		updates = append(updates, [2]int64{downloaded, total})
 	})
-
 	buf := make([]byte, 2)
 	for {
 		_, err := reader.Read(buf)
@@ -148,14 +124,6 @@ func TestProgressReaderReportsProgress(t *testing.T) {
 			t.Fatalf("Read failed: %v", err)
 		}
 	}
-
-	if err := reader.Close(); err != nil {
-		t.Fatalf("Close failed: %v", err)
-	}
-
-	if !src.closed {
-		t.Fatal("expected underlying reader to be closed")
-	}
 	if len(updates) < 2 {
 		t.Fatalf("expected progress callbacks, got %d", len(updates))
 	}
@@ -165,35 +133,4 @@ func TestProgressReaderReportsProgress(t *testing.T) {
 	if last := updates[len(updates)-1]; last != [2]int64{6, 6} {
 		t.Fatalf("expected final progress event, got %#v", last)
 	}
-}
-
-type fakeUpdateClient struct {
-	release     *releaseInfo
-	found       bool
-	detectErr   error
-	updateErr   error
-	updateCalls int
-}
-
-func (c *fakeUpdateClient) DetectLatest(context.Context) (*releaseInfo, bool, error) {
-	return c.release, c.found, c.detectErr
-}
-
-func (c *fakeUpdateClient) UpdateTo(context.Context, *releaseInfo) error {
-	c.updateCalls++
-	return c.updateErr
-}
-
-type trackingReadCloser struct {
-	reader *bytes.Reader
-	closed bool
-}
-
-func (r *trackingReadCloser) Read(p []byte) (int, error) {
-	return r.reader.Read(p)
-}
-
-func (r *trackingReadCloser) Close() error {
-	r.closed = true
-	return nil
 }

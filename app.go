@@ -3,12 +3,9 @@ package main
 import (
 	"context"
 	"embed"
-	"flag"
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -50,44 +47,32 @@ func NewApp() *App {
 	}
 }
 
-func resolveConfigDir() string {
-	cliConfigDir := flag.String("config-dir", "", "Directory containing PacketMind config files")
-	flag.Parse()
-
-	configDir := strings.TrimSpace(*cliConfigDir)
-	if configDir == "" {
-		configDir = strings.TrimSpace(os.Getenv("PACKETMIND_CONFIG_DIR"))
-	}
-	if configDir == "" {
-		configDir = "./configs"
-	}
-	if abs, err := filepath.Abs(configDir); err == nil {
-		return abs
-	}
-	return configDir
-}
-
 func main() {
 	fmt.Println("PacketMind Wails bootstrap")
 	fmt.Printf("[PacketMind] version %s (build %s, commit %s)\n", version.Version, version.BuildTime, version.Commit)
 
-	configDir := resolveConfigDir()
-	fmt.Printf("[PacketMind] config dir: %s\n", configDir)
+	paths := resolveRuntimePaths(os.Args[1:])
+	if err := ensureConfigDir(paths.configDir); err != nil {
+		log.Fatalf("Failed to initialize config directory %s: %v", paths.configDir, err)
+	}
+	if err := os.MkdirAll(paths.dataDir, 0o755); err != nil {
+		log.Fatalf("Failed to initialize data directory %s: %v", paths.dataDir, err)
+	}
+	fmt.Printf("[PacketMind] config dir: %s\n", paths.configDir)
+	fmt.Printf("[PacketMind] data dir: %s\n", paths.dataDir)
+	config.DefaultDataDir = paths.dataDir
 
-	modelsStore, err := config.LoadModelsStore(configDir)
+	modelsStore, err := config.LoadModelsStore(paths.configDir)
 	if err != nil {
 		log.Fatalf("Warning: Failed to load models config: %v", err)
 	}
 	config.DefaultModelsStore = modelsStore
-	appSettingsStore, err := config.LoadAppSettingsStore(configDir)
+	appSettingsStore, err := config.LoadAppSettingsStore(paths.configDir)
 	if err != nil {
 		log.Printf("Warning: Failed to load packetmind settings: %v, using defaults", err)
-		appSettingsStore = config.NewAppSettingsStore(configDir, config.DefaultPacketMindSettings())
+		appSettingsStore = config.NewAppSettingsStore(paths.configDir, config.DefaultPacketMindSettings())
 	}
 	config.DefaultSettingsStore = appSettingsStore
-	if err := os.MkdirAll("./data", 0755); err != nil {
-		log.Fatalf("Failed to create data directory: %v", err)
-	}
 
 	store, err := storage.NewStorage()
 	if err != nil {
@@ -100,7 +85,7 @@ func main() {
 		log.Fatalf("Failed to create default session: %v", err)
 	}
 
-	prox, err := proxy.New(appSettingsStore.Snapshot())
+	prox, err := proxy.New(config.ResolveRuntimeSettings(appSettingsStore.Snapshot()))
 	if err != nil {
 		log.Fatalf("Failed to initialize proxy: %v", err)
 	}

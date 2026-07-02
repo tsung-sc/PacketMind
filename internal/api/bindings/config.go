@@ -47,15 +47,16 @@ type UpdateSettingsRequest = config.AppSettings
 // UpdateSettings 更新应用设置并同步应用到代理运行时。
 func (c *ConfigAPI) UpdateSettings(req UpdateSettingsRequest) SessionResponse {
 	oldSettings := config.DefaultSettingsStore.Snapshot()
-	nextSettings := config.CloneForRuntime((*config.AppSettings)(&req))
+	nextSettings := config.ResolveRuntimeSettings((*config.AppSettings)(&req))
 
+	oldRuntimeSettings := config.ResolveRuntimeSettings(oldSettings)
 	if err := proxy.Default.ApplySettings(nextSettings); err != nil {
 		return SessionResponse{Code: 40002, Message: fmt.Sprintf("Failed to apply settings: %v", err)}
 	}
 
 	settings, err := config.DefaultSettingsStore.Update(config.AppSettings(req))
 	if err != nil {
-		if rollbackErr := proxy.Default.ApplySettings(oldSettings); rollbackErr != nil {
+		if rollbackErr := proxy.Default.ApplySettings(oldRuntimeSettings); rollbackErr != nil {
 			fmt.Printf("[ConfigAPI] failed to rollback proxy settings: %v\n", rollbackErr)
 		}
 		return SessionResponse{Code: 40002, Message: err.Error()}

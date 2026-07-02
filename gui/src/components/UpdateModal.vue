@@ -24,11 +24,14 @@
 
       <div v-else-if="updateReady" :class="$style.stateView">
         <div :class="$style.readyText">
-          <strong>Update applied!</strong><br />
-          Please restart PacketMind to use the new version.
+          <strong>Installer downloaded!</strong><br />
+          Open the installer to update PacketMind.
+          <div v-if="downloadedUpdate?.path" :class="$style.downloadedPath">{{ downloadedUpdate.path }}</div>
         </div>
         <div :class="$style.actions">
-          <a-button type="primary" @click="closeModal">OK</a-button>
+          <a-button @click="showDownloadedUpdate">Show in Folder</a-button>
+          <a-button type="primary" @click="openDownloadedUpdate">Open Installer</a-button>
+          <a-button @click="closeModal">Later</a-button>
         </div>
       </div>
 
@@ -53,7 +56,7 @@
 
         <div :class="$style.actions">
           <a-button @click="closeModal">Skip</a-button>
-          <a-button type="primary" @click="performUpdate">Download and Install</a-button>
+          <a-button type="primary" @click="performUpdate">Download Installer</a-button>
         </div>
       </div>
 
@@ -93,8 +96,11 @@ const {
   progress,
   error,
   updateReady,
+  downloadedUpdate,
   checkForUpdate,
   performUpdate,
+  openDownloadedUpdate,
+  showDownloadedUpdate,
   reset
 } = useUpdater()
 
@@ -159,6 +165,17 @@ const formatReleaseNotes = (notes: string): string => {
   line-height: 1.5;
   color: #333;
   margin-bottom: 24px;
+}
+
+.downloadedPath {
+  max-width: 420px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border: 1px solid #d9d9d9;
+  background: #f7f7f7;
+  color: #666;
+  font-size: 12px;
+  word-break: break-all;
 }
 
 .progressDetail {

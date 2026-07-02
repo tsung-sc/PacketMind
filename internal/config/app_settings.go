@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+var DefaultDataDir string
+
 // AppSettings represents the desktop/proxy configuration.
 type AppSettings struct {
 	Proxy  ProxySettings  `json:"proxy"`
@@ -257,6 +259,29 @@ func SavePacketMindSettings(path string, settings *AppSettings) error {
 }
 
 // CloneForRuntime returns a normalized deep copy of settings for runtime use.
+func ResolveRuntimeSettings(settings *AppSettings) *AppSettings {
+	cloned := CloneForRuntime(settings)
+	if cloned == nil || strings.TrimSpace(DefaultDataDir) == "" {
+		return cloned
+	}
+	cloned.Cert.CACertFile = resolveDataPath(DefaultDataDir, cloned.Cert.CACertFile)
+	cloned.Cert.CAKeyFile = resolveDataPath(DefaultDataDir, cloned.Cert.CAKeyFile)
+	return cloned
+}
+
+func resolveDataPath(dataDir, path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" || filepath.IsAbs(trimmed) {
+		return trimmed
+	}
+	cleaned := filepath.Clean(trimmed)
+	dataPrefix := "data" + string(os.PathSeparator)
+	if strings.HasPrefix(cleaned, dataPrefix) {
+		cleaned = strings.TrimPrefix(cleaned, dataPrefix)
+	}
+	return filepath.Join(dataDir, cleaned)
+}
+
 func CloneForRuntime(settings *AppSettings) *AppSettings {
 	cloned := cloneAppSettings(settings)
 	cloned.normalize()

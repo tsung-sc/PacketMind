@@ -6,10 +6,22 @@ export function CheckForUpdate() {
   return window['go']['bindings']['UpdaterAPI']['CheckForUpdate']();
 }
 
+export function DownloadUpdate() {
+  return window['go']['bindings']['UpdaterAPI']['DownloadUpdate']();
+}
+
 export function GetVersion() {
   return window['go']['bindings']['UpdaterAPI']['GetVersion']();
 }
 
+export function OpenDownloadedUpdate(arg1) {
+  return window['go']['bindings']['UpdaterAPI']['OpenDownloadedUpdate'](arg1);
+}
+
 export function PerformUpdate() {
   return window['go']['bindings']['UpdaterAPI']['PerformUpdate']();
+}
+
+export function ShowDownloadedUpdate(arg1) {
+  return window['go']['bindings']['UpdaterAPI']['ShowDownloadedUpdate'](arg1);
 }
