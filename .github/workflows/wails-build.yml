@@ -71,6 +71,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev || sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+          if [ ! -f /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig/webkit2gtk-4.0.pc ]; then
+            sudo ln -sf /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig/webkit2gtk-4.1.pc /usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig/webkit2gtk-4.0.pc
+          fi
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
