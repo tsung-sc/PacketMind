@@ -4,7 +4,7 @@
 
 **AI-Powered Desktop Packet Capture & Request Tracing**
 
-[![Version](https://img.shields.io/badge/version-v1.0.13-blue.svg)](https://github.com/packetmind/packetmind/releases)
+[![Version](https://img.shields.io/badge/version-v1.0.10-blue.svg)](https://github.com/packetmind/packetmind/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/packetmind/packetmind/blob/main/LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://go.dev/)
 [![Wails](https://img.shields.io/badge/Wails-v2-2D8CFF)](https://wails.io/)
