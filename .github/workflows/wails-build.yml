@@ -95,16 +95,6 @@ jobs:
         shell: bash
         run: mkdir -p dist
 
-      - name: Package Windows portable zip
-        if: matrix.platform == 'windows'
-        shell: powershell
-        run: |
-          New-Item -ItemType Directory -Force -Path dist\PacketMind\configs | Out-Null
-          Copy-Item build\bin\packetmind.exe dist\PacketMind\packetmind.exe
-          Copy-Item configs\packetmind.json dist\PacketMind\configs\packetmind.json
-          Copy-Item configs\models.json dist\PacketMind\configs\models.json
-          Compress-Archive -Path dist\PacketMind\* -DestinationPath "dist\PacketMind_${{ github.ref_name }}_windows_${{ matrix.goarch }}.zip"
-
       - name: Install Inno Setup
         if: matrix.platform == 'windows'
         shell: powershell
@@ -125,13 +115,6 @@ jobs:
           mkdir -p build/bin/PacketMind.app/Contents/Resources/configs
           cp configs/packetmind.json build/bin/PacketMind.app/Contents/Resources/configs/
           cp configs/models.json build/bin/PacketMind.app/Contents/Resources/configs/
-
-      - name: Package macOS app zip
-        if: matrix.platform == 'darwin'
-        shell: bash
-        run: |
-          cd build/bin
-          zip -r ../../dist/PacketMind_${{ github.ref_name }}_darwin_${{ matrix.goarch }}.zip PacketMind.app
 
       - name: Package macOS dmg
         if: matrix.platform == 'darwin'
