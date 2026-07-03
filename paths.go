@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -55,6 +56,12 @@ func firstNonEmpty(values ...string) string {
 }
 
 func defaultExeConfigDir() string {
+	if runtime.GOOS == "darwin" {
+		if base, err := os.UserConfigDir(); err == nil && strings.TrimSpace(base) != "" {
+			return filepath.Join(base, "PacketMind", "configs")
+		}
+		return ""
+	}
 	exe, err := os.Executable()
 	if err != nil {
 		return ""
