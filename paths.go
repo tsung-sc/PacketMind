@@ -17,7 +17,7 @@ func resolveRuntimePaths(args []string) runtimePaths {
 	configDir := firstNonEmpty(
 		argValue(args, "--config-dir", "-config-dir"),
 		os.Getenv("PACKETMIND_CONFIG_DIR"),
-		defaultUserConfigDir(),
+		defaultExeConfigDir(),
 		"./configs",
 	)
 	configDir = absPath(configDir)
@@ -52,6 +52,14 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func defaultExeConfigDir() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(exe), "configs")
 }
 
 func defaultUserConfigDir() string {
