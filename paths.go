@@ -62,14 +62,6 @@ func defaultExeConfigDir() string {
 	return filepath.Join(filepath.Dir(exe), "configs")
 }
 
-func defaultUserConfigDir() string {
-	base, err := os.UserConfigDir()
-	if err != nil || strings.TrimSpace(base) == "" {
-		return ""
-	}
-	return filepath.Join(base, "PacketMind", "configs")
-}
-
 func absPath(path string) string {
 	if abs, err := filepath.Abs(path); err == nil {
 		return abs
