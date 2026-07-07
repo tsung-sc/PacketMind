@@ -14,6 +14,7 @@
         :throttlingEnabled="appSettings.proxy.throttling.enabled"
         :sslProxyingEnabled="appSettings.proxy.ssl_proxying.enabled"
         :accessControlEnabled="appSettings.proxy.access_control.enabled"
+        :mcpServerEnabled="appSettings.mcp_server?.enabled ?? false"
         :breakpointsEnabled="appSettings.proxy.breakpoints.enabled"
         :noCachingEnabled="appSettings.tools.no_caching"
         :blockCookiesEnabled="appSettings.tools.block_cookies"
@@ -334,7 +335,7 @@ const appSettings = ref<AppSettings>({
   },
 });
 const settingsModalVisible = ref(false);
-const settingsModalMode = ref<'proxy' | 'recording' | 'ssl' | 'access-control' | 'external-proxy' | 'throttling' | 'breakpoints' | 'reverse-proxy' | 'port-forwarding' | 'web-interface' | 'preferences'>('proxy');
+const settingsModalMode = ref<'proxy' | 'recording' | 'ssl' | 'access-control' | 'external-proxy' | 'throttling' | 'breakpoints' | 'reverse-proxy' | 'port-forwarding' | 'web-interface' | 'mcp-server' | 'preferences'>('proxy');
 const localIPModalVisible = ref(false);
 const localIPAddresses = ref<Array<{ interface_name: string; ip_address: string }>>([]);
 const aboutModalVisible = ref(false);
@@ -1059,6 +1060,9 @@ const handleMenuAction = async (action: string) => {
       return;
     case 'proxy:web-interface':
       openSettingsModal('web-interface');
+      return;
+    case 'proxy:mcp-server':
+      openSettingsModal('mcp-server');
       return;
     case 'proxy:external-proxy':
       openSettingsModal('external-proxy');

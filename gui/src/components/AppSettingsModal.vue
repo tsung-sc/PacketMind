@@ -140,6 +140,20 @@
         </a-form-item>
       </template>
 
+      <template v-else-if="mode === 'mcp-server'">
+        <a-form-item label="MCP Server">
+          <a-switch v-model:checked="draft.mcp_server.enabled" />
+          <span style="margin-left: 8px; font-size: 12px; color: #888">
+            Expose traffic analysis tools to external AI agents
+          </span>
+        </a-form-item>
+        <a-form-item v-if="draft.mcp_server.enabled" label="Host / Port">
+          <a-input v-model:value="draft.mcp_server.host" style="width: 120px" :disabled="!draft.mcp_server.enabled" />
+          <span style="margin: 0 6px">:</span>
+          <a-input-number v-model:value="draft.mcp_server.port" :min="1" :max="65535" style="width: 80px" :disabled="!draft.mcp_server.enabled" />
+        </a-form-item>
+      </template>
+
       <template v-else-if="mode === 'preferences'">
         <a-space direction="vertical" :size="8">
           <a-checkbox v-model:checked="draft.window.structure_view">Use Structure View</a-checkbox>
@@ -157,7 +171,7 @@
 import { computed, ref, watch, toRaw } from 'vue';
 import type { AppSettings } from '@/types';
 
-type Mode = 'proxy' | 'recording' | 'ssl' | 'access-control' | 'external-proxy' | 'throttling' | 'breakpoints' | 'reverse-proxy' | 'port-forwarding' | 'web-interface' | 'preferences';
+type Mode = 'proxy' | 'recording' | 'ssl' | 'access-control' | 'external-proxy' | 'throttling' | 'breakpoints' | 'reverse-proxy' | 'port-forwarding' | 'web-interface' | 'mcp-server' | 'preferences';
 
 interface Props {
   visible: boolean;
@@ -199,6 +213,7 @@ const titles: Record<Mode, string> = {
   'reverse-proxy': 'Reverse Proxies',
   'port-forwarding': 'Port Forwarding',
   'web-interface': 'Web Interface Settings',
+  'mcp-server': 'MCP Server Settings',
   preferences: 'Preferences',
 };
 
@@ -208,6 +223,13 @@ const splitLines = (value: string) => value.split(/\r?\n/).map((item) => item.tr
 
 const syncDraft = () => {
   draft.value = cloneSettings(props.settings);
+  // Ensure mcp_server defaults are populated
+  if (!draft.value.mcp_server) {
+    draft.value.mcp_server = { enabled: false, host: '127.0.0.1', port: 8889 };
+  }
+  draft.value.mcp_server.enabled = draft.value.mcp_server.enabled ?? false;
+  draft.value.mcp_server.host = draft.value.mcp_server.host || '127.0.0.1';
+  draft.value.mcp_server.port = draft.value.mcp_server.port || 8889;
   sslIncludeHosts.value = draft.value.proxy.ssl_proxying.include_hosts.join('\n');
   sslExcludeHosts.value = draft.value.proxy.ssl_proxying.exclude_hosts.join('\n');
   allowedClients.value = draft.value.proxy.access_control.allowed_clients.join('\n');

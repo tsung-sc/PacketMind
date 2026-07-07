@@ -19,6 +19,7 @@ import (
 	"github.com/packetmind/packetmind/internal/api/bindings"
 	"github.com/packetmind/packetmind/internal/appctx"
 	"github.com/packetmind/packetmind/internal/config"
+	"github.com/packetmind/packetmind/internal/mcpserver"
 	"github.com/packetmind/packetmind/internal/proxy"
 	"github.com/packetmind/packetmind/internal/storage"
 	"github.com/packetmind/packetmind/internal/version"
@@ -167,6 +168,13 @@ func main() {
 func (a *App) startup(ctx context.Context) {
 	appctx.Set(ctx)
 	a.applyScreenRelativeWindowSize()
+
+	mcpServerCfg := config.DefaultSettingsStore.Snapshot().MCPServer
+	if mcpServerCfg.Enabled {
+		if err := mcpserver.StartSSEServer(storage.Default, mcpServerCfg.Host, mcpServerCfg.Port); err != nil {
+			log.Printf("[MCP Server] failed to start: %v", err)
+		}
+	}
 
 	mcpManager := initMCPManager(ctx, config.DefaultSettingsStore.Snapshot().MCP)
 	if mcpManager != nil {

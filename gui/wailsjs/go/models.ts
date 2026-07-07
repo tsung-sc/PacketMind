@@ -295,6 +295,22 @@ export namespace config {
 	        this.allowed_clients = source["allowed_clients"];
 	    }
 	}
+	export class MCPServerSettings {
+	    enabled: boolean;
+	    host: string;
+	    port: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new MCPServerSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.host = source["host"];
+	        this.port = source["port"];
+	    }
+	}
 	export class MCPServerConfig {
 	    name: string;
 	    command: string;
@@ -679,6 +695,7 @@ export namespace config {
 	    window: WindowSettings;
 	    cert: CertSettings;
 	    mcp: MCPSettings;
+	    mcp_server: MCPServerSettings;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppSettings(source);
@@ -691,6 +708,7 @@ export namespace config {
 	        this.window = this.convertValues(source["window"], WindowSettings);
 	        this.cert = this.convertValues(source["cert"], CertSettings);
 	        this.mcp = this.convertValues(source["mcp"], MCPSettings);
+	        this.mcp_server = this.convertValues(source["mcp_server"], MCPServerSettings);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -711,6 +729,7 @@ export namespace config {
 		    return a;
 		}
 	}
+	
 	
 	
 	

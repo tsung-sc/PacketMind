@@ -351,6 +351,11 @@ export interface AppSettings {
     structure_view: boolean;
     use_dark_theme: boolean;
   };
+  mcp_server: {
+    enabled: boolean;
+    host: string;
+    port: number;
+  };
 }
 
 export interface UpdateInfo {

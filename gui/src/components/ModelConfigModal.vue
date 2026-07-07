@@ -35,7 +35,12 @@
       <div :class="$style.providerConfig">
         <h4>{{ providerDraftVisible ? (editingProviderId ? 'Edit LLM Channel' : 'New LLM Channel') : `Configure ${selectedProviderName}` }}</h4>
 
-        <a-form v-if="providerDraftVisible" layout="vertical">
+        <div v-if="providerList.length === 0 && !providerDraftVisible" :class="$style.emptyState">
+          <p :class="$style.emptyTitle">No channels configured</p>
+          <p :class="$style.emptyHint">Click "New Channel" on the left to add your first LLM provider.</p>
+        </div>
+
+        <a-form v-else-if="providerDraftVisible" layout="vertical">
           <a-row :gutter="12">
             <a-col :span="12">
                 <a-form-item label="Channel ID" required :class="$style.formItem">
@@ -711,6 +716,29 @@ watch(() => props.visible, async (visible) => {
   color: #666;
   background: #e6e6e6;
   border: 1px dashed #aaa;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+  text-align: center;
+}
+
+.emptyTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+}
+
+.emptyHint {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
 }
 
 .modelForm {

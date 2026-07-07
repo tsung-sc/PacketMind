@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -17,7 +18,7 @@ func resolveRuntimePaths(args []string) runtimePaths {
 	configDir := firstNonEmpty(
 		argValue(args, "--config-dir", "-config-dir"),
 		os.Getenv("PACKETMIND_CONFIG_DIR"),
-		defaultUserConfigDir(),
+		defaultExeConfigDir(),
 		"./configs",
 	)
 	configDir = absPath(configDir)
@@ -54,12 +55,18 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-func defaultUserConfigDir() string {
-	base, err := os.UserConfigDir()
-	if err != nil || strings.TrimSpace(base) == "" {
+func defaultExeConfigDir() string {
+	if runtime.GOOS == "darwin" {
+		if base, err := os.UserConfigDir(); err == nil && strings.TrimSpace(base) != "" {
+			return filepath.Join(base, "PacketMind", "configs")
+		}
 		return ""
 	}
-	return filepath.Join(base, "PacketMind", "configs")
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(exe), "configs")
 }
 
 func absPath(path string) string {

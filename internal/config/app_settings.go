@@ -12,11 +12,12 @@ var DefaultDataDir string
 
 // AppSettings represents the desktop/proxy configuration.
 type AppSettings struct {
-	Proxy  ProxySettings  `json:"proxy"`
-	Tools  ToolSettings   `json:"tools"`
-	Window WindowSettings `json:"window"`
-	Cert   CertSettings   `json:"cert"`
-	MCP    MCPSettings    `json:"mcp"`
+	Proxy     ProxySettings     `json:"proxy"`
+	Tools     ToolSettings      `json:"tools"`
+	Window    WindowSettings    `json:"window"`
+	Cert      CertSettings      `json:"cert"`
+	MCP       MCPSettings       `json:"mcp"`
+	MCPServer MCPServerSettings `json:"mcp_server"`
 }
 
 // CertSettings holds CA certificate configuration.
@@ -159,6 +160,12 @@ type MCPSettings struct {
 	Servers []MCPServerConfig `json:"servers"`
 }
 
+type MCPServerSettings struct {
+	Enabled bool   `json:"enabled"`
+	Host    string `json:"host"`
+	Port    int    `json:"port"`
+}
+
 // DefaultPacketMindSettings returns the default desktop/proxy settings.
 func DefaultPacketMindSettings() *AppSettings {
 	settings := &AppSettings{
@@ -206,6 +213,11 @@ func DefaultPacketMindSettings() *AppSettings {
 			CACertFile:   "./data/certs/ca.crt",
 			CAKeyFile:    "./data/certs/ca.key",
 			Organization: "PacketMind",
+		},
+		MCPServer: MCPServerSettings{
+			Enabled: false,
+			Host:    "127.0.0.1",
+			Port:    8889,
 		},
 	}
 	settings.normalize()
