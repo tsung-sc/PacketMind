@@ -25,6 +25,7 @@ const (
 	ToolClassifyRequests         = "classify_requests"
 	ToolTraceFlowSequence        = "trace_flow_sequence"
 	ToolTestHypothesis           = "test_hypothesis"
+	ToolListSessions             = "list_sessions"
 )
 
 const toolJSONSchemaExtraKey = "json_schema"
@@ -179,6 +180,10 @@ func BuiltInSchemas() []*llmtypes.ToolDefinition {
 				"hypothesis":      map[string]any{"type": "string", "description": "Structured generation rule. E.g. 'MD5(CONCAT(timestamp, body_raw))', 'HMAC_SHA256(CONCAT(method,path,timestamp), secret=EXTRACT(response_body,$.data.secret))'"},
 			},
 			"required": []string{"request_ids", "target_field", "target_location", "hypothesis"},
+		}),
+		NewFunctionTool(ToolListSessions, "List all capture sessions with their IDs, names, and active status. Use this to discover which sessions are available for analysis before calling other tools.", map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
 		}),
 	}
 }

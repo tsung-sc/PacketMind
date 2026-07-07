@@ -22,6 +22,7 @@ var (
 	NewClassifyRequestsHandler         = newClassifyRequestsHandler
 	NewTraceFlowSequenceHandler        = newTraceFlowSequenceHandler
 	NewTestHypothesisHandler           = newTestHypothesisHandler
+	NewListSessionsHandler             = newListSessionsHandler
 )
 
 type BuiltinHandlerFunc = tools.BuiltinHandler

@@ -175,6 +175,77 @@ wails dev
 
 ---
 
+## 🔌 外部 Agent 接入（MCP Server）
+
+不想使用内置 Agent？你可以将自己的 AI Agent（OpenCode、Claude 或任何 MCP 兼容客户端）接入 PacketMind 的流量分析工具。
+
+### 工作原理
+
+PacketMind 将全部 17 个分析工具（会话总览、请求搜索、值溯源、假设验证等）通过标准 **MCP Server** (SSE) 暴露出去。你的外部 Agent 调用这些工具来分析抓包数据——PacketMind 只负责提供数据层。
+
+### 配置步骤
+
+1. 打开 PacketMind → **Proxy** 菜单 → **MCP Server Settings...**
+2. 打开 **Enabled** 开关——SSE 服务立即启动，无需重启
+3. 配置你的外部 Agent 连接：
+
+**OpenCode**（`opencode.json`）：
+```json
+{
+  "mcp": {
+    "servers": {
+      "packetmind": {
+        "url": "http://127.0.0.1:8889/sse",
+        "enabled": true
+      }
+    }
+  }
+}
+```
+
+**Claude Desktop**（`claude_desktop_config.json`）：
+```json
+{
+  "mcpServers": {
+    "packetmind": {
+      "url": "http://127.0.0.1:8889/sse"
+    }
+  }
+}
+```
+
+4. 将 `skills/packetmind-traffic-analysis/` 下的 Skill 文件复制到你的 Agent 的 skills 目录，为其提供分析方法论。
+
+### 可用工具
+
+你的外部 Agent 可以使用全部 PacketMind 分析工具：
+
+| 工具 | 用途 |
+|------|------|
+| `list_sessions` | 发现可分析的抓包会话 |
+| `summarize_session` | 会话总览 |
+| `classify_requests` | 请求自动分类 |
+| `trace_flow_sequence` | 追踪 cookie/token/value 流转 |
+| `get_request` | 获取请求详情 |
+| `search_all_fields` | 全字段搜索 |
+| `trace_value_flow` | 端到端值溯源 |
+| `test_hypothesis` | 验证签名/编码假设 |
+| `diff_requests` | 对比两个请求差异 |
+| `analyze_encoding` | 解码嵌套编码层 |
+| ...更多 | 见 `skills/packetmind-traffic-analysis/tools-reference.md` |
+
+### 使用示例
+
+连接后，直接问你的 Agent：
+
+```
+分析一下当前 PacketMind 抓包会话里的 token 流转
+```
+
+你的 Agent 会自动调用 PacketMind 的工具进行调查并报告结论。
+
+---
+
 ## 🛠️ 技术栈
 
 | 层级 | 技术 |

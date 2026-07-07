@@ -7,7 +7,9 @@ import (
 	"os"
 
 	"github.com/packetmind/packetmind/internal/config"
+	"github.com/packetmind/packetmind/internal/mcpserver"
 	"github.com/packetmind/packetmind/internal/proxy"
+	"github.com/packetmind/packetmind/internal/storage"
 )
 
 // ConfigAPI 提供配置相关的前端绑定。
@@ -60,6 +62,17 @@ func (c *ConfigAPI) UpdateSettings(req UpdateSettingsRequest) SessionResponse {
 			fmt.Printf("[ConfigAPI] failed to rollback proxy settings: %v\n", rollbackErr)
 		}
 		return SessionResponse{Code: 40002, Message: err.Error()}
+	}
+
+	if oldSettings.MCPServer.Enabled != settings.MCPServer.Enabled ||
+		oldSettings.MCPServer.Host != settings.MCPServer.Host ||
+		oldSettings.MCPServer.Port != settings.MCPServer.Port {
+		_ = mcpserver.StopSSEServer()
+		if settings.MCPServer.Enabled {
+			if err := mcpserver.StartSSEServer(storage.Default, settings.MCPServer.Host, settings.MCPServer.Port); err != nil {
+				fmt.Printf("[ConfigAPI] failed to start MCP server: %v\n", err)
+			}
+		}
 	}
 
 	return SessionResponse{Code: 0, Message: "Settings updated", Data: sanitizeSettings(settings)}
@@ -366,6 +379,11 @@ func sanitizeSettings(settings *config.AppSettings) map[string]interface{} {
 		"window": map[string]interface{}{
 			"structure_view": settings.Window.StructureView,
 			"use_dark_theme": settings.Window.UseDarkTheme,
+		},
+		"mcp_server": map[string]interface{}{
+			"enabled": settings.MCPServer.Enabled,
+			"host":    settings.MCPServer.Host,
+			"port":    settings.MCPServer.Port,
 		},
 	}
 }

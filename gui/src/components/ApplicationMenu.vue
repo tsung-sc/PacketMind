@@ -91,6 +91,7 @@ interface Props {
   throttlingEnabled?: boolean;
   sslProxyingEnabled?: boolean;
   accessControlEnabled?: boolean;
+  mcpServerEnabled?: boolean;
   breakpointsEnabled?: boolean;
   noCachingEnabled?: boolean;
   blockCookiesEnabled?: boolean;
@@ -218,6 +219,7 @@ const menuGroups = computed<MenuGroup[]>(() => [
       { key: 'proxy-ssl-settings', label: 'SSL Proxying Settings...', action: 'proxy:ssl-settings', checked: props.sslProxyingEnabled, disabled: !props.hasProxySettings },
       { key: 'proxy-access-control', label: 'Access Control Settings...', action: 'proxy:access-control', checked: props.accessControlEnabled, disabled: !props.hasProxySettings },
       { key: 'proxy-web-interface', label: 'Web Interface Settings...', action: 'proxy:web-interface', disabled: !props.hasProxySettings },
+      { key: 'proxy-mcp-server', label: 'MCP Server Settings...', action: 'proxy:mcp-server', checked: props.mcpServerEnabled },
       { key: 'proxy-external-proxy', label: 'External Proxy Settings...', action: 'proxy:external-proxy', checked: props.externalProxyEnabled, disabled: !props.hasProxySettings },
       { key: 'proxy-sep-2', separator: true },
       { 

@@ -36,6 +36,7 @@ func NewBuiltinServer(store *storage.Storage, exec agenttools.ToolExecutor) *ser
 	s.AddTool(builtinClassifyRequestsTool(), builtinWrappedHandler(store, builtin.NewClassifyRequestsHandler(store)))
 	s.AddTool(builtinTraceFlowSequenceTool(), builtinWrappedHandler(store, builtin.NewTraceFlowSequenceHandler(store)))
 	s.AddTool(builtinTestHypothesisTool(), builtinWrappedHandler(store, builtin.NewTestHypothesisHandler(store)))
+	s.AddTool(builtinListSessionsTool(), builtinWrappedHandler(store, builtin.NewListSessionsHandler(store)))
 
 	return s
 }
@@ -245,5 +246,11 @@ func builtinTestHypothesisTool() mcp.Tool {
 		mcp.WithString("target_field", mcp.Required(), mcp.Description("Field to verify, e.g. 'sign', 'Authorization', 'token'")),
 		mcp.WithString("target_location", mcp.Required(), mcp.Description("'body', 'header', 'query', 'response_body', 'response_header', 'cookie'")),
 		mcp.WithString("hypothesis", mcp.Required(), mcp.Description("Structured generation rule. E.g. 'MD5(CONCAT(timestamp, body_raw))', 'HMAC_SHA256(CONCAT(method,path,timestamp), secret=EXTRACT(response_body,$.data.secret))'")),
+	)
+}
+
+func builtinListSessionsTool() mcp.Tool {
+	return mcp.NewTool(agenttools.ToolListSessions,
+		mcp.WithDescription("List all capture sessions with their IDs, names, and active status."),
 	)
 }

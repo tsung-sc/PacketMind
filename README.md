@@ -175,6 +175,77 @@ Set your browser/system proxy to `localhost:8888` (default port). HTTPS traffic 
 
 ---
 
+## 🔌 External Agent Integration (MCP Server)
+
+Don't want to use the built-in Agent? You can connect your own AI agent (OpenCode, Claude, or any MCP-compatible client) to PacketMind's traffic analysis tools.
+
+### How it works
+
+PacketMind exposes all 17 analysis tools (session overview, request search, value tracing, hypothesis testing, etc.) as a standard **MCP Server** over SSE. Your external agent calls these tools to analyze captured traffic — PacketMind just provides the data layer.
+
+### Setup
+
+1. Open PacketMind → **Proxy** menu → **MCP Server Settings...**
+2. Toggle **Enabled** — the SSE server starts immediately, no restart needed
+3. Configure your external agent to connect:
+
+**OpenCode** (`opencode.json`):
+```json
+{
+  "mcp": {
+    "servers": {
+      "packetmind": {
+        "url": "http://127.0.0.1:8889/sse",
+        "enabled": true
+      }
+    }
+  }
+}
+```
+
+**Claude Desktop** (`claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "packetmind": {
+      "url": "http://127.0.0.1:8889/sse"
+    }
+  }
+}
+```
+
+4. Copy the skill files from `skills/packetmind-traffic-analysis/` to your agent's skills directory to give it the analysis methodology.
+
+### Available tools
+
+Your external agent gets access to all PacketMind analysis tools:
+
+| Tool | Purpose |
+|------|---------|
+| `list_sessions` | Discover available capture sessions |
+| `summarize_session` | High-level session overview |
+| `classify_requests` | Auto-classify requests by role |
+| `trace_flow_sequence` | Trace cookie/token/value flows |
+| `get_request` | Fetch full request details |
+| `search_all_fields` | Search across all request fields |
+| `trace_value_flow` | End-to-end provenance tracing |
+| `test_hypothesis` | Verify signature/encoding hypotheses |
+| `diff_requests` | Compare two requests |
+| `analyze_encoding` | Decode nested encoding layers |
+| ...and more | See `skills/packetmind-traffic-analysis/tools-reference.md` |
+
+### Usage example
+
+Once connected, just ask your agent:
+
+```
+Analyze the token flow in my current PacketMind session
+```
+
+Your agent will automatically call PacketMind's tools to investigate and report findings.
+
+---
+
 ## 🛠️ Tech Stack
 
 | Layer | Technology |
